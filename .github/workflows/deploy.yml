@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - main # Or your default branch
+      - main
 
 jobs:
   build:
@@ -16,20 +16,24 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Specify your Node.js version
+          node-version: '20'
+
+      - name: Navigate to project directory
+        run: cd mr-r-sushi
 
       - name: Install dependencies
-        run: npm install # Or yarn install
+        working-directory: ./mr-r-sushi
+        run: npm install
 
       - name: Build project
-        run: npm run build # Or your build command
-        # Ensure your build output is in a directory like 'dist' or 'build'
+        working-directory: ./mr-r-sushi
+        run: npm run build
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-output
-          path: dist/ # Or your build output directory
+          path: mr-r-sushi/dist/
 
   deploy:
     needs: build
