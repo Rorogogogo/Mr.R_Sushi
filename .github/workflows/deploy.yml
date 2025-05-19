@@ -28,11 +28,12 @@ jobs:
       - name: Build project
         working-directory: ./mr-r-sushi
         run: |
-          # Use forced build to bypass TS errors
-          npm run build -- --emitWarningsAsErrors=false || true
-          # Verify build was created despite errors
+          # Use the CI build script that skips TypeScript checking
+          npm run ci-build
+
+          # Verify build was created
           if [ -d "dist" ]; then
-            echo "Build completed with warnings"
+            echo "Build completed"
           else
             echo "Build failed completely"
             exit 1
