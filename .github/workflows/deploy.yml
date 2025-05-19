@@ -1,0 +1,54 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main # Or your default branch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Specify your Node.js version
+
+      - name: Install dependencies
+        run: npm install # Or yarn install
+
+      - name: Build project
+        run: npm run build # Or your build command
+        # Ensure your build output is in a directory like 'dist' or 'build'
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: dist/ # Or your build output directory
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          path: dist/
+
+      - name: Deploy to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 3.27.153.16
+          username: ec2-user
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: 'dist/*'
+          target: '/var/www/html/mr-r-sushi'
+          strip_components: 1
