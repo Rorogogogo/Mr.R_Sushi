@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="Mr. R寿司 - 正宗的日本料理，为您提供最优质的寿司体验" />
+  <meta name="theme-color" content="#8B0000" />
+  <title>Mr. R寿司 - 正宗的日本料理</title>
+  <style>
+    /* Loading spinner styles */
+    .initial-loader {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #121212;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease-out;
+    }
+
+    .initial-loader.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-spinner {
+      width: 60px;
+      height: 60px;
+      border: 5px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      border-top-color: #D4AF37;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    .loader-text {
+      margin-top: 20px;
+      color: #D4AF37;
+      font-family: sans-serif;
+      font-size: 18px;
+      letter-spacing: 2px;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Initial loading spinner -->
+  <div id="initial-loader" class="initial-loader">
+    <div class="loader-spinner"></div>
+    <div class="loader-text">Mr. R寿司</div>
+  </div>
+
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+
+  <script>
+    // Hide loader after content has loaded
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        const loader = document.getElementById('initial-loader')
+        if (loader) {
+          loader.classList.add('hide')
+          setTimeout(() => {
+            loader.style.display = 'none'
+          }, 500)
+        }
+      }, 1500) // Longer delay to ensure React has mounted and animations have started
+    });
+  </script>
+</body>
+
+</html>

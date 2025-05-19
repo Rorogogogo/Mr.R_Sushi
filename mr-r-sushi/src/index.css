@@ -1,0 +1,79 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Noto+Serif+JP:wght@400;500;600;700&family=Poppins:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --scrollbar-thumb: #8b0000;
+  --scrollbar-track: #f1f1f1;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-white text-gray-800 font-sans overflow-x-hidden;
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+  .btn {
+    @apply px-6 py-2 rounded-md font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-sushi-gold/50 transform hover:scale-[1.02] active:scale-[0.98];
+  }
+  .btn-primary {
+    @apply btn bg-sushi-red text-white hover:bg-sushi-accent;
+  }
+  .btn-outline {
+    @apply btn border-2 border-sushi-gold text-sushi-gold hover:bg-sushi-gold hover:text-white;
+  }
+  .container-custom {
+    @apply container mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  .section-heading {
+    @apply font-display text-3xl md:text-4xl font-bold mb-6 text-sushi-black;
+  }
+  .heading-accent {
+    @apply text-sushi-gold;
+  }
+  .overlay-gradient {
+    @apply absolute inset-0 bg-gradient-to-t from-sushi-black/70 to-transparent;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6e0000;
+}
+
+/* Mobile optimization classes */
+@layer utilities {
+  .mobile-container {
+    @apply mx-auto w-full max-w-[420px] px-4 xs:px-6;
+  }
+
+  .mobile-py {
+    @apply py-10 md:py-16;
+  }
+
+  .mobile-friendly-text {
+    @apply text-sm xs:text-base leading-relaxed;
+  }
+}
