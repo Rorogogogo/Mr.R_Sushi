@@ -54,15 +54,32 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: build-output
-          path: dist/
+          path: ./dist # 解压到工作目录
 
-      - name: Deploy to EC2
-        uses: appleboy/scp-action@v0.1.7
+      # 1️⃣ 先用 SSH Action 修好目录权限
+      - name: Prepare webroot on EC2
+        uses: appleboy/ssh-action@v1.0.0
         with:
-          host: 3.27.153.16
+          host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
-          source: 'dist/*'
+          script: |
+            sudo mkdir -p /var/www/html/mr-r-sushi
+            sudo chown -R ec2-user:ec2-user /var/www/html/mr-r-sushi
+
+      # 2️⃣ 再用 SCP Action 上传文件
+      - name: Deploy to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: 'dist/**' # 上传 dist 里所有内容
           target: '/var/www/html/mr-r-sushi'
-          strip_components: 1
+          strip_components: 1 # 去掉 dist 这一层
+          rm: true # 上传前清空旧文件
+          timeout: 60s
+          command_timeout: 15m
+          debug: true
