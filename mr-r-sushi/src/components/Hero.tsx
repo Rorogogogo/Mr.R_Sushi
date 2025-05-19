@@ -15,7 +15,9 @@ const Hero = () => {
   return (
     <section
       id="home"
-      className="relative bg-gradient-to-b from-sushi-black to-sushi-neutral overflow-hidden min-h-[100vh] h-auto flex items-center py-16 md:py-0">
+      className={`relative bg-gradient-to-b from-sushi-black to-sushi-neutral overflow-hidden min-h-[100vh] h-auto flex items-center py-16 md:py-0 ${
+        scrolled ? 'scrolled' : ''
+      }`}>
       {/* Background overlay with modern pattern */}
       <div className="absolute inset-0 z-0 opacity-10">
         <div
