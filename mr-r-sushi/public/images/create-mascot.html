@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sushi Mascot Generator</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f9f5ff;
+    }
+
+    .container {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    h1 {
+      color: #d53f8c;
+      margin-bottom: 10px;
+    }
+
+    p {
+      color: #4a5568;
+      margin-bottom: 20px;
+    }
+
+    #mascot {
+      width: 300px;
+      height: 300px;
+      margin-bottom: 20px;
+    }
+
+    button {
+      background: linear-gradient(to right, #d53f8c, #805ad5);
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: bold;
+      margin: 5px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Kawaii 寿司 Mascot Generator</h1>
+    <p>Right-click on the image to save it as "sushi-mascot.png" in the images folder</p>
+  </div>
+
+  <svg id="mascot" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <!-- Rice base -->
+    <ellipse cx="100" cy="120" rx="70" ry="40" fill="#f5f5f5" stroke="#e2e2e2" stroke-width="2" />
+
+    <!-- Seaweed wrap -->
+    <path d="M30 120 Q 30 90, 100 80 Q 170 90, 170 120" stroke="#0f766e" stroke-width="12" fill="none" />
+
+    <!-- Salmon top -->
+    <ellipse cx="100" cy="80" rx="60" ry="25" fill="#ff9e7a" stroke="#fb7c5b" stroke-width="2" />
+
+    <!-- Sauce droplets -->
+    <circle cx="70" cy="75" r="5" fill="#1e3a8a" opacity="0.7" />
+    <circle cx="110" cy="70" r="4" fill="#1e3a8a" opacity="0.7" />
+    <circle cx="130" cy="85" r="4" fill="#1e3a8a" opacity="0.7" />
+
+    <!-- Rice grains -->
+    <circle cx="60" cy="110" r="3" fill="white" />
+    <circle cx="80" cy="125" r="3" fill="white" />
+    <circle cx="120" cy="115" r="3" fill="white" />
+    <circle cx="140" cy="125" r="3" fill="white" />
+
+    <!-- Face -->
+    <circle cx="85" cy="95" r="5" fill="black" />
+    <circle cx="115" cy="95" r="5" fill="black" />
+
+    <!-- Mouth options -->
+    <g id="happy-mouth">
+      <path d="M90 110 Q 100 120, 110 110" stroke="black" stroke-width="3" fill="none" stroke-linecap="round" />
+    </g>
+
+    <g id="surprised-mouth" style="display:none">
+      <circle cx="100" cy="110" r="8" fill="black" />
+      <circle cx="100" cy="108" r="3" fill="#ff9e7a" />
+    </g>
+
+    <g id="cute-mouth" style="display:none">
+      <path d="M90 110 Q 100 105, 110 110 Q 100 118, 90 110 Z" fill="black" />
+    </g>
+
+    <!-- Cheeks -->
+    <circle cx="75" cy="105" r="7" fill="#ffb3b3" opacity="0.6" />
+    <circle cx="125" cy="105" r="7" fill="#ffb3b3" opacity="0.6" />
+  </svg>
+
+  <div>
+    <button onclick="changeMouth('happy-mouth')">Happy</button>
+    <button onclick="changeMouth('surprised-mouth')">Surprised</button>
+    <button onclick="changeMouth('cute-mouth')">Cute</button>
+    <button onclick="saveImage()">Save Image</button>
+  </div>
+
+  <script>
+    function changeMouth (mouthId) {
+      // Hide all mouths
+      document.getElementById('happy-mouth').style.display = 'none'
+      document.getElementById('surprised-mouth').style.display = 'none'
+      document.getElementById('cute-mouth').style.display = 'none'
+
+      // Show selected mouth
+      document.getElementById(mouthId).style.display = 'block'
+    }
+
+    function saveImage () {
+      const svg = document.getElementById('mascot')
+      const serializer = new XMLSerializer()
+      const svgStr = serializer.serializeToString(svg)
+
+      const canvas = document.createElement('canvas')
+      canvas.width = 300
+      canvas.height = 300
+      const ctx = canvas.getContext('2d')
+
+      const img = new Image()
+      img.onload = function () {
+        ctx.drawImage(img, 0, 0, 300, 300)
+
+        // Create a download link
+        const link = document.createElement('a')
+        link.download = 'sushi-mascot.png'
+        link.href = canvas.toDataURL('image/png')
+        link.click()
+      }
+
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgStr)
+    }
+  </script>
+</body>
+
+</html>

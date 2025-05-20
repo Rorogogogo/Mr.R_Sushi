@@ -1,0 +1,6 @@
+@MrRSushiApi_HostAddress = http://localhost:5131
+
+GET {{MrRSushiApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

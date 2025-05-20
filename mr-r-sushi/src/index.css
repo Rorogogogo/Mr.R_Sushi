@@ -77,3 +77,44 @@ body {
     @apply text-sm xs:text-base leading-relaxed;
   }
 }
+
+/* Cart styles */
+body.cart-open {
+  overflow: hidden;
+}
+
+/* Kawaii styles */
+.kawaii-blob {
+  filter: url('#kawaii-filter');
+  will-change: transform;
+}
+
+.kawaii-shadow {
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+/* Animation classes */
+.animate-bounce-slow {
+  animation: bounce 3s infinite;
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+/* Gradient text */
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-blue-500;
+}

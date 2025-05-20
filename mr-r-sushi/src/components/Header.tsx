@@ -1,10 +1,112 @@
 import { useState, useEffect } from 'react'
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  Button,
+  IconButton,
+  Badge,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  Box,
+  Tabs,
+  Tab,
+  useScrollTrigger,
+  Container,
+  useTheme,
+  useMediaQuery,
+  styled,
+  Divider,
+  ListItemIcon,
+  Slide,
+} from '@mui/material'
+import {
+  Menu as MenuIcon,
+  ShoppingCart as ShoppingCartIcon,
+  Home as HomeIcon,
+  Restaurant as RestaurantIcon,
+  Info as InfoIcon,
+  Phone as PhoneIcon,
+  EventNote as EventIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material'
 import { motion, AnimatePresence } from 'framer-motion'
+import Cart from './Cart'
+import { getCartItems } from '../services/cartService'
 
-const Header = () => {
+type CartItem = {
+  id: number
+  quantity: number
+}
+
+type HeaderProps = {
+  setCartOpen: (isOpen: boolean) => void
+}
+
+// Styled Components
+const StyledAppBar = styled(AppBar)(({ theme }) => ({
+  boxShadow: 'none',
+  transition: 'all 0.3s ease',
+  backgroundImage: 'none',
+}))
+
+const StyledTab = styled(Tab)(({ theme }) => ({
+  fontWeight: 600,
+  minWidth: 'auto',
+  '&.Mui-selected': {
+    color: theme.palette.primary.main,
+  },
+}))
+
+const BrandTypography = styled(Typography)(({ theme }) => ({
+  fontWeight: 'bold',
+  background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+  display: 'inline-flex',
+  alignItems: 'center',
+}))
+
+const LogoContainer = styled(motion.div)({
+  display: 'flex',
+  alignItems: 'center',
+})
+
+// Scroll effect function
+function HideOnScroll(props: { children: React.ReactElement }) {
+  const { children } = props
+  const trigger = useScrollTrigger({
+    disableHysteresis: true,
+    threshold: 100,
+  })
+
+  return (
+    <Slide appear={false} direction="down" in={!trigger}>
+      {children}
+    </Slide>
+  )
+}
+
+const Header = ({ setCartOpen }: HeaderProps) => {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [activeSection, setActiveSection] = useState('home')
+  const [isCartOpen, setIsCartOpen] = useState(false)
+  const [cartItemCount, setCartItemCount] = useState(0)
+  const [cartBounce, setCartBounce] = useState(false)
+
+  // Navigation items configuration
+  const navItems = [
+    { id: 'home', label: '首页', icon: <HomeIcon /> },
+    { id: 'menu', label: '菜单', icon: <RestaurantIcon /> },
+    { id: 'about', label: '关于我们', icon: <InfoIcon /> },
+    { id: 'contact', label: '联系方式', icon: <PhoneIcon /> },
+  ]
 
   // Handle scroll events for header appearance and active section
   useEffect(() => {
@@ -29,192 +131,323 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Close menu when clicking a link on mobile
-  const handleNavClick = () => {
-    if (window.innerWidth < 768) {
+  // Fetch cart items count periodically
+  useEffect(() => {
+    const fetchCartCount = async () => {
+      try {
+        const items = await getCartItems()
+        const newCount = items.reduce(
+          (total: number, item: CartItem) => total + item.quantity,
+          0
+        )
+
+        // Only trigger animation if count increases
+        if (newCount > cartItemCount) {
+          setCartBounce(true)
+          setTimeout(() => setCartBounce(false), 300)
+        }
+
+        setCartItemCount(newCount)
+      } catch (err) {
+        console.error('Error fetching cart count:', err)
+      }
+    }
+
+    fetchCartCount()
+
+    // Update cart count every 30 seconds
+    const interval = setInterval(fetchCartCount, 30000)
+    return () => clearInterval(interval)
+  }, [cartItemCount])
+
+  // Handle navigation click
+  const handleNavClick = (section: string) => {
+    // Close mobile menu if open
+    if (isMobile) {
+      setIsMenuOpen(false)
+    }
+
+    // Scroll to section
+    const element = document.getElementById(section)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
+  // Open the cart
+  const handleOpenCart = () => {
+    setCartOpen(true)
+    // Also update our local state
+    setIsCartOpen(true)
+
+    // If mobile menu is open, close it
+    if (isMenuOpen) {
       setIsMenuOpen(false)
     }
   }
 
-  // Handle body scroll lock when mobile menu is open
-  useEffect(() => {
-    if (isMenuOpen) {
-      document.body.classList.add('mobile-nav-active')
-    } else {
-      document.body.classList.remove('mobile-nav-active')
-    }
-
-    return () => {
-      document.body.classList.remove('mobile-nav-active')
-    }
-  }, [isMenuOpen])
-
-  // Navigation items
-  const navItems = [
-    { id: 'home', label: '首页' },
-    { id: 'menu', label: '菜单' },
-    { id: 'about', label: '关于我们' },
-    { id: 'contact', label: '联系方式' },
-  ]
+  // Handle cart close
+  const handleCloseCart = () => {
+    setIsCartOpen(false)
+    setCartOpen(false)
+  }
 
   return (
-    <motion.header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'bg-white/95 backdrop-blur-md shadow-md py-2'
-          : 'bg-transparent py-4'
-      }`}
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}>
-      <div className="container-custom flex justify-between items-center">
-        <motion.div
-          className="flex items-center"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}>
-          <a href="#home" className="block">
-            <h1
-              className={`font-display font-bold transition-all duration-300 ${
-                scrolled ? 'text-2xl' : 'text-3xl'
-              }`}>
-              <span className="text-sushi-red">Mr. R</span>
-              <span className="text-sushi-gold">寿司</span>
-            </h1>
-          </a>
-        </motion.div>
+    <>
+      <HideOnScroll>
+        <StyledAppBar
+          position="fixed"
+          sx={{
+            bgcolor: scrolled
+              ? 'rgba(255, 255, 255, 0.95)'
+              : 'rgba(245, 250, 255, 0.9)',
+            backdropFilter: 'blur(8px)',
+            borderBottom: scrolled ? 1 : 0,
+            borderColor: 'divider',
+            color: 'text.primary',
+            py: scrolled ? 0 : 0.5,
+          }}>
+          {/* Decorative top border */}
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '3px',
+              background: `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+            }}
+          />
 
-        {/* Mobile menu button with animation */}
-        <motion.div
-          className="md:hidden z-50"
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}>
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className={`w-10 h-10 relative focus:outline-none ${
-              scrolled ? 'text-gray-700' : 'text-black'
-            }`}
-            aria-label="Menu">
-            <div className="block w-5 absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <span
-                className={`block absolute h-0.5 w-5 bg-current transform transition duration-300 ease-in-out ${
-                  isMenuOpen ? 'rotate-45' : '-translate-y-1.5'
-                }`}></span>
-              <span
-                className={`block absolute h-0.5 w-5 bg-current transform transition duration-300 ease-in-out ${
-                  isMenuOpen ? 'opacity-0' : 'opacity-100'
-                }`}></span>
-              <span
-                className={`block absolute h-0.5 w-5 bg-current transform transition duration-300 ease-in-out ${
-                  isMenuOpen ? '-rotate-45' : 'translate-y-1.5'
-                }`}></span>
-            </div>
-          </button>
-        </motion.div>
+          <Container maxWidth="lg">
+            <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
+              {/* Logo */}
+              <LogoContainer
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6 }}>
+                <Button
+                  component="a"
+                  href="#home"
+                  color="inherit"
+                  sx={{
+                    textTransform: 'none',
+                    fontFamily: 'inherit',
+                    fontWeight: 'bold',
+                    fontSize: { xs: '1.2rem', md: '1.5rem' },
+                  }}>
+                  <BrandTypography variant={scrolled ? 'h6' : 'h5'}>
+                    Mr. R 寿司
+                    <motion.span
+                      style={{
+                        marginLeft: '8px',
+                        display: 'inline-block',
+                        fontSize: scrolled ? '1.2rem' : '1.5rem',
+                        color: 'inherit',
+                      }}
+                      animate={cartBounce ? { y: [0, -5, 0] } : {}}
+                      transition={{ duration: 0.3 }}>
+                      🍣
+                    </motion.span>
+                  </BrandTypography>
+                </Button>
+              </LogoContainer>
 
-        {/* Desktop menu */}
-        <nav className="hidden md:flex items-center space-x-2">
+              {/* Mobile Menu Icon */}
+              <Box
+                sx={{
+                  display: { xs: 'flex', md: 'none' },
+                  alignItems: 'center',
+                }}>
+                <IconButton
+                  color="inherit"
+                  aria-label="cart"
+                  onClick={handleOpenCart}
+                  sx={{ mr: 1 }}>
+                  <Badge
+                    badgeContent={cartItemCount}
+                    color="primary"
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        animation: cartBounce ? 'bounce 0.3s ease' : 'none',
+                        '@keyframes bounce': {
+                          '0%, 100%': { transform: 'scale(1)' },
+                          '50%': { transform: 'scale(1.3)' },
+                        },
+                      },
+                    }}>
+                    <ShoppingCartIcon />
+                  </Badge>
+                </IconButton>
+
+                <IconButton
+                  edge="end"
+                  color="inherit"
+                  aria-label="menu"
+                  onClick={() => setIsMenuOpen(true)}
+                  sx={{
+                    ml: 1,
+                    bgcolor: isMenuOpen ? 'rgba(0,0,0,0.05)' : 'transparent',
+                    '&:hover': { bgcolor: 'rgba(0,0,0,0.1)' },
+                  }}>
+                  <MenuIcon />
+                </IconButton>
+              </Box>
+
+              {/* Desktop Navigation */}
+              <Box
+                sx={{
+                  display: { xs: 'none', md: 'flex' },
+                  alignItems: 'center',
+                }}>
+                <Tabs
+                  value={activeSection}
+                  sx={{ mr: 2 }}
+                  TabIndicatorProps={{
+                    style: {
+                      backgroundColor: theme.palette.primary.main,
+                      height: 3,
+                      borderRadius: '3px 3px 0 0',
+                    },
+                  }}>
+                  {navItems.map((item) => (
+                    <StyledTab
+                      key={item.id}
+                      label={
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            py: 0.5,
+                          }}>
+                          {item.id === activeSection && (
+                            <Box
+                              component="span"
+                              sx={{ mr: 0.75, display: 'flex' }}>
+                              {item.icon}
+                            </Box>
+                          )}
+                          {item.label}
+                        </Box>
+                      }
+                      value={item.id}
+                      onClick={() => handleNavClick(item.id)}
+                    />
+                  ))}
+                </Tabs>
+
+                <IconButton
+                  color="inherit"
+                  aria-label="cart"
+                  onClick={handleOpenCart}
+                  sx={{ mr: 2 }}>
+                  <Badge
+                    badgeContent={cartItemCount}
+                    color="primary"
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        animation: cartBounce ? 'bounce 0.3s ease' : 'none',
+                        '@keyframes bounce': {
+                          '0%, 100%': { transform: 'scale(1)' },
+                          '50%': { transform: 'scale(1.3)' },
+                        },
+                      },
+                    }}>
+                    <ShoppingCartIcon />
+                  </Badge>
+                </IconButton>
+              </Box>
+            </Toolbar>
+          </Container>
+        </StyledAppBar>
+      </HideOnScroll>
+
+      {/* Mobile Navigation Drawer */}
+      <Drawer
+        anchor="right"
+        open={isMenuOpen}
+        onClose={() => setIsMenuOpen(false)}
+        PaperProps={{
+          sx: {
+            width: 280,
+            backgroundImage: `linear-gradient(to bottom, ${theme.palette.background.paper}, ${theme.palette.background.default})`,
+          },
+        }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            p: 2,
+          }}>
+          <BrandTypography variant="h6">Mr. R 寿司</BrandTypography>
+          <IconButton onClick={() => setIsMenuOpen(false)}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
+
+        <Divider />
+
+        <List>
           {navItems.map((item) => (
-            <motion.div
+            <ListItem
               key={item.id}
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="relative">
-              <a
-                href={`#${item.id}`}
-                onClick={handleNavClick}
-                className={`px-4 py-2 rounded-full font-medium text-sm transition-colors relative ${
+              sx={{
+                borderLeft:
                   activeSection === item.id
-                    ? 'text-sushi-red'
-                    : scrolled
-                    ? 'text-gray-700 hover:text-sushi-red'
-                    : 'text-white hover:text-sushi-gold'
-                }`}>
-                {item.label}
-                {activeSection === item.id && (
-                  <motion.span
-                    layoutId="activeSection"
-                    className="absolute inset-0 rounded-full bg-white/10"
-                    initial={false}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 300,
-                      damping: 30,
-                    }}></motion.span>
-                )}
-              </a>
-            </motion.div>
+                    ? `4px solid ${theme.palette.primary.main}`
+                    : '4px solid transparent',
+                bgcolor:
+                  activeSection === item.id
+                    ? 'rgba(0,0,0,0.04)'
+                    : 'transparent',
+                py: 1.5,
+                cursor: 'pointer',
+              }}
+              onClick={() => handleNavClick(item.id)}>
+              <ListItemIcon
+                sx={{
+                  minWidth: 40,
+                  color: activeSection === item.id ? 'primary.main' : 'inherit',
+                }}>
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText
+                primary={item.label}
+                primaryTypographyProps={{
+                  fontWeight: activeSection === item.id ? 600 : 400,
+                  color: activeSection === item.id ? 'primary.main' : 'inherit',
+                }}
+              />
+            </ListItem>
           ))}
+        </List>
 
-          <motion.a
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            href="#contact"
-            className={`ml-4 px-4 py-2 rounded-full text-sm font-medium border transition-all ${
-              scrolled
-                ? 'bg-sushi-red text-white border-sushi-red hover:bg-sushi-red/90'
-                : 'bg-white/10 backdrop-blur-sm text-white border-white/30 hover:bg-white/20'
-            }`}>
-            预约座位
-          </motion.a>
-        </nav>
-      </div>
+        <Divider sx={{ my: 2 }} />
 
-      {/* Mobile menu with improved animation */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <motion.div
-            className="fixed inset-0 bg-sushi-black/95 md:hidden z-40 flex items-center justify-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}>
-            <motion.nav
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.3, delay: 0.1 }}
-              className="flex flex-col items-center justify-center space-y-6 w-full px-6">
-              {navItems.map((item, i) => (
-                <motion.div
-                  key={item.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + i * 0.1 }}
-                  className="w-full">
-                  <a
-                    href={`#${item.id}`}
-                    onClick={handleNavClick}
-                    className={`text-2xl font-display font-medium block text-center py-3 w-full border-b border-white/10 ${
-                      activeSection === item.id
-                        ? 'text-sushi-gold'
-                        : 'text-white'
-                    }`}>
-                    {item.label}
-                  </a>
-                </motion.div>
-              ))}
+        <Box sx={{ p: 2 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            fullWidth
+            startIcon={<ShoppingCartIcon />}
+            onClick={() => {
+              handleOpenCart()
+              setIsMenuOpen(false)
+            }}
+            sx={{
+              borderRadius: '24px',
+              py: 1,
+              boxShadow: 3,
+            }}>
+            查看购物车
+          </Button>
+        </Box>
+      </Drawer>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="pt-6 w-full">
-                <a
-                  href="#contact"
-                  onClick={handleNavClick}
-                  className="block w-full py-3 text-center bg-sushi-red text-white rounded-lg text-lg">
-                  预约座位
-                </a>
-              </motion.div>
-            </motion.nav>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.header>
+      {/* Cart Component */}
+      <Cart isOpen={isCartOpen} onClose={handleCloseCart} />
+    </>
   )
 }
 

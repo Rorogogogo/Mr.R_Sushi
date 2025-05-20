@@ -1,21 +1,203 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
+import {
+  Box,
+  Typography,
+  Container,
+  Grid,
+  Card,
+  CardMedia,
+  CardContent,
+  CardActions,
+  Button,
+  Tabs,
+  Tab,
+  Chip,
+  Skeleton,
+  IconButton,
+  useTheme,
+  useMediaQuery,
+  Paper,
+  styled,
+  Divider,
+  Badge,
+} from '@mui/material'
+import {
+  ShoppingCart as ShoppingCartIcon,
+  Favorite as FavoriteIcon,
+  LocalFireDepartment as HotIcon,
+  Restaurant as RestaurantIcon,
+  Add as AddIcon,
+  Remove as RemoveIcon,
+} from '@mui/icons-material'
 import { motion, AnimatePresence } from 'framer-motion'
+import toast from 'react-hot-toast'
+import type { MenuItem } from '../types/menu'
+import { getAllMenuItems, getFeaturedItems } from '../services/menuService'
+import { addToCart, updateCartItemQuantity } from '../services/cartService'
+import CompanionSelectionDialog from './CompanionSelectionDialog'
 
-interface MenuItem {
-  name: string
-  price: string
-  category: 'sushi' | 'handroll'
-  description?: string
-  featured?: boolean
-  image?: string
-}
+// Animation variants
+const MotionContainer = styled(motion.div)({
+  width: '100%',
+})
 
+const MotionItem = styled(motion.div)({
+  width: '100%',
+})
+
+// Styled components
+const CategoryTab = styled(Tab)(({ theme }) => ({
+  minWidth: 80,
+  fontWeight: 600,
+  '&.Mui-selected': {
+    color: theme.palette.primary.main,
+  },
+}))
+
+const MenuCategory = styled(Box)(({ theme }) => ({
+  position: 'relative',
+  padding: theme.spacing(6, 0, 8),
+}))
+
+const CategoryTitle = styled(Typography)(({ theme }) => ({
+  position: 'relative',
+  marginBottom: theme.spacing(4),
+  display: 'inline-block',
+  '&:after': {
+    content: '""',
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -8,
+    height: 3,
+    background: `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.secondary.light})`,
+    borderRadius: theme.shape.borderRadius,
+  },
+}))
+
+const FeaturedBadge = styled(Badge)(({ theme }) => ({
+  '& .MuiBadge-badge': {
+    backgroundColor: theme.palette.warning.main,
+    color: theme.palette.warning.contrastText,
+  },
+}))
+
+const PriceChip = styled(Chip)(({ theme }) => ({
+  fontWeight: 700,
+  backgroundColor: theme.palette.primary.light,
+  color: theme.palette.primary.contrastText,
+  border: `1px solid ${theme.palette.primary.main}`,
+}))
+
+const StyledCard = styled(Card)(({ theme }) => ({
+  height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+  '&:hover': {
+    transform: 'translateY(-8px)',
+    boxShadow: '0 12px 20px rgba(0, 0, 0, 0.1)',
+  },
+}))
+
+const CardImageContainer = styled(Box)({
+  position: 'relative',
+  paddingTop: '60%', // 16:9 aspect ratio
+})
+
+const StyledCardMedia = styled(CardMedia)({
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  width: '100%',
+  height: '100%',
+  objectFit: 'cover',
+})
+
+// Add ReserveButton styled component similar to CircularGallery
+const ReserveButton = styled(Button)(({ theme }) => ({
+  borderRadius: 12,
+  padding: theme.spacing(1.2),
+  fontWeight: 'bold',
+  textTransform: 'none',
+  letterSpacing: 0.5,
+  boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+  position: 'relative',
+  overflow: 'hidden',
+  background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: '-100%',
+    width: '100%',
+    height: '100%',
+    background:
+      'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
+    transition: 'all 0.5s',
+  },
+  '&:hover::before': {
+    left: '100%',
+  },
+  '&:hover': {
+    boxShadow: '0 8px 25px rgba(0,0,0,0.18)',
+    background: `linear-gradient(45deg, ${theme.palette.secondary.main}, ${theme.palette.primary.main})`,
+  },
+}))
+
+const QuantityControlContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+}))
+
+const QuantityButton = styled(IconButton)(({ theme }) => ({
+  backgroundColor: theme.palette.background.paper,
+  boxShadow: theme.shadows[2],
+  color: theme.palette.primary.main,
+  border: `1px solid ${theme.palette.primary.light}`,
+  padding: 8,
+  '&:hover': {
+    backgroundColor: theme.palette.primary.main,
+    color: theme.palette.primary.contrastText,
+  },
+}))
+
+const QuantityText = styled(Typography)(({ theme }) => ({
+  minWidth: 36,
+  textAlign: 'center',
+  fontWeight: 'bold',
+  background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+  WebkitBackgroundClip: 'text',
+  WebkitTextFillColor: 'transparent',
+}))
+
+// Main Menu Component
 const Menu = () => {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'))
+
   const [activeCategory, setActiveCategory] = useState<
-    'all' | 'sushi' | 'handroll'
+    'all' | 'sushi' | 'handroll' | 'pancake'
   >('all')
-  const [isInView, setIsInView] = useState(false)
-  const sectionRef = useRef<HTMLElement>(null)
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
+  const [featuredItems, setFeaturedItems] = useState<MenuItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [isAddingToCart, setIsAddingToCart] = useState<{
+    [key: number]: boolean
+  }>({})
+  // Add itemQuantities state to track quantities
+  const [itemQuantities, setItemQuantities] = useState<{
+    [key: number]: { cartItemId: number; quantity: number }
+  }>({})
+
+  // State for companion selection dialog
+  const [companionDialogOpen, setCompanionDialogOpen] = useState(false)
+  const [selectedMenuItem, setSelectedMenuItem] = useState<MenuItem | null>(
+    null
+  )
 
   // Fallback image for when an image fails to load
   const fallbackImageUrl =
@@ -27,389 +209,681 @@ const Menu = () => {
   }
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsInView(entry.isIntersecting)
-      },
-      { threshold: 0.2 }
-    )
+    const fetchMenuData = async () => {
+      setIsLoading(true)
+      try {
+        const items = await getAllMenuItems()
+        setMenuItems(items)
 
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current)
-    }
-
-    return () => {
-      if (sectionRef.current) {
-        observer.unobserve(sectionRef.current)
+        const featured = await getFeaturedItems()
+        setFeaturedItems(featured)
+      } catch (error) {
+        console.error('Error loading menu data:', error)
+        toast.error('无法加载菜单数据，请稍后重试')
+      } finally {
+        setIsLoading(false)
       }
     }
+
+    fetchMenuData()
   }, [])
-
-  const menuItems: MenuItem[] = [
-    // Sushi items with added descriptions and featured status
-    {
-      name: '招牌寿司',
-      price: '13元',
-      category: 'sushi',
-      description:
-        'Signature sushi with fresh ingredients and our special sauce',
-      featured: true,
-      image: '/images/sushi-signature.jpg',
-    },
-    {
-      name: '鸭蛋黄寿司',
-      price: '15元',
-      category: 'sushi',
-      description: 'Duck egg yolk sushi with rich flavor profile',
-      image: '/images/sushi-duck.jpg',
-    },
-    {
-      name: '培根寿司',
-      price: '15元',
-      category: 'sushi',
-      description: 'Crispy bacon sushi fusion dish',
-    },
-    {
-      name: '樱花寿司',
-      price: '15元',
-      category: 'sushi',
-      description: 'Cherry blossom inspired sushi with seasonal flavors',
-      featured: true,
-      image:
-        'https://images.unsplash.com/photo-1556906782-5e232862b21e?q=80&w=300&auto=format&fit=crop',
-    },
-    {
-      name: '芝士寿司',
-      price: '16元',
-      category: 'sushi',
-      description: 'Cheese sushi with a perfect blend of flavors',
-    },
-    {
-      name: '鱼子酱寿司',
-      price: '16元',
-      category: 'sushi',
-      description: 'Premium fish roe sushi with exquisite taste',
-    },
-    {
-      name: '金枪鱼寿司',
-      price: '18元',
-      category: 'sushi',
-      description: 'Fresh tuna sushi, a classic favorite',
-      featured: true,
-      image:
-        'https://images.unsplash.com/photo-1558985250-27a406d64cb3?q=80&w=300&auto=format&fit=crop',
-    },
-    {
-      name: '金枪鱼鱼子酱寿司',
-      price: '20元',
-      category: 'sushi',
-      description: 'Tuna with fish roe sushi, rich in flavor',
-    },
-    {
-      name: '金枪鱼鹌鹑蛋芝士寿司',
-      price: '22元',
-      category: 'sushi',
-      description: 'Tuna with quail egg and cheese sushi, premium taste',
-    },
-    {
-      name: '金枪鱼鹌鹑蛋芝士+鸭蛋黄寿司',
-      price: '24元',
-      category: 'sushi',
-      description: 'Tuna with quail egg, cheese and duck egg yolk sushi',
-    },
-    {
-      name: '金枪鱼鹌鹑蛋芝士+鸭蛋黄+培根寿司',
-      price: '26元',
-      category: 'sushi',
-      description:
-        'Our ultimate tuna combination sushi with all premium toppings',
-      featured: true,
-      image:
-        'https://images.unsplash.com/photo-1562802378-063ec186a863?q=80&w=300&auto=format&fit=crop',
-    },
-
-    // Hand roll items with descriptions
-    {
-      name: '肉松手卷',
-      price: '7元',
-      category: 'handroll',
-      description: 'Meat floss hand roll with savory flavor',
-      featured: true,
-      image:
-        'https://images.unsplash.com/photo-1553621042-f6e147245754?q=80&w=300&auto=format&fit=crop',
-    },
-    {
-      name: '火腿手卷',
-      price: '7元',
-      category: 'handroll',
-      description: 'Ham hand roll, a perfect quick bite',
-    },
-    {
-      name: '鱼子手卷',
-      price: '7元',
-      category: 'handroll',
-      description: 'Fish roe hand roll with premium roe',
-    },
-    {
-      name: '蟹棒手卷',
-      price: '7元',
-      category: 'handroll',
-      description: 'Crab stick hand roll, a classic choice',
-      featured: true,
-      image:
-        'https://images.unsplash.com/photo-1540713304937-18ad930d3594?q=80&w=300&auto=format&fit=crop',
-    },
-    {
-      name: '芝士手卷',
-      price: '7元',
-      category: 'handroll',
-      description: 'Cheese hand roll with a creamy texture',
-    },
-  ]
 
   const filteredItems =
     activeCategory === 'all'
       ? menuItems
       : menuItems.filter((item) => item.category === activeCategory)
 
-  const featuredItems = menuItems.filter((item) => item.featured)
+  // Modify handleAddToCart to update quantities
+  const handleAddToCart = async (menuItem: MenuItem) => {
+    // Check if this is a pancake item that needs companion selection
+    if (menuItem.category === 'pancake' && menuItem.name.includes('煎饼')) {
+      setSelectedMenuItem(menuItem)
+      setCompanionDialogOpen(true)
+      return
+    }
 
-  const container = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.08,
-      },
-    },
+    try {
+      setIsAddingToCart((prev) => ({ ...prev, [menuItem.id]: true }))
+
+      // If item is already in cart, increase quantity
+      if (itemQuantities[menuItem.id]) {
+        await updateCartItemQuantity(
+          itemQuantities[menuItem.id].cartItemId,
+          itemQuantities[menuItem.id].quantity + 1
+        )
+
+        setItemQuantities({
+          ...itemQuantities,
+          [menuItem.id]: {
+            ...itemQuantities[menuItem.id],
+            quantity: itemQuantities[menuItem.id].quantity + 1,
+          },
+        })
+      } else {
+        // Add new item to cart
+        const result = await addToCart(menuItem, 1)
+
+        // Store cart item ID and quantity
+        setItemQuantities({
+          ...itemQuantities,
+          [menuItem.id]: {
+            cartItemId: result.id || menuItem.id,
+            quantity: 1,
+          },
+        })
+      }
+
+      // Success notification
+      toast.success(`${menuItem.name} 已预定`, {
+        duration: 2000,
+        icon: '🍽️',
+      })
+    } catch (error) {
+      console.error('Error adding to cart:', error)
+      toast.error('预定失败，请重试')
+    } finally {
+      // Clear loading state
+      setTimeout(() => {
+        setIsAddingToCart((prev) => ({ ...prev, [menuItem.id]: false }))
+      }, 300)
+    }
   }
 
-  const item = {
-    hidden: { opacity: 0, y: 20 },
-    show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: 'easeOut' } },
+  // Add handleRemoveFromCart function
+  const handleRemoveFromCart = async (menuItem: MenuItem) => {
+    if (
+      !itemQuantities[menuItem.id] ||
+      itemQuantities[menuItem.id].quantity <= 0
+    )
+      return
+
+    try {
+      const newQuantity = itemQuantities[menuItem.id].quantity - 1
+
+      if (newQuantity === 0) {
+        // Remove item completely from our local state
+        const newQuantities = { ...itemQuantities }
+        delete newQuantities[menuItem.id]
+        setItemQuantities(newQuantities)
+
+        // Call removeCartItem here if you have that function
+        // await removeCartItem(itemQuantities[menuItem.id].cartItemId)
+      } else {
+        // Update quantity
+        await updateCartItemQuantity(
+          itemQuantities[menuItem.id].cartItemId,
+          newQuantity
+        )
+
+        setItemQuantities({
+          ...itemQuantities,
+          [menuItem.id]: {
+            ...itemQuantities[menuItem.id],
+            quantity: newQuantity,
+          },
+        })
+      }
+    } catch (error) {
+      console.error('Error removing from cart:', error)
+      toast.error('更新失败，请重试')
+    }
   }
 
-  const categories = [
-    { id: 'all', label: '全部菜单' },
-    { id: 'sushi', label: '寿司' },
-    { id: 'handroll', label: '手卷' },
-  ]
+  // Handle adding pancake with companions to cart
+  const handleAddPancakeWithCompanions = async (companions: string[]) => {
+    if (!selectedMenuItem) return
+
+    try {
+      setIsAddingToCart((prev) => ({ ...prev, [selectedMenuItem.id]: true }))
+      await addToCart(selectedMenuItem, 1, companions)
+
+      // Success notification with companions
+      const companionsText =
+        companions.length > 0 ? ` (${companions.join(', ')})` : ''
+
+      toast.success(
+        `${selectedMenuItem.name}${companionsText} 已添加到购物车`,
+        {
+          duration: 2000,
+          icon: '🥞',
+        }
+      )
+    } catch (error) {
+      console.error('Error adding pancake to cart:', error)
+      toast.error('添加到购物车失败，请重试')
+    } finally {
+      // Close dialog and clear loading state
+      setCompanionDialogOpen(false)
+      setTimeout(() => {
+        if (selectedMenuItem) {
+          setIsAddingToCart((prev) => ({
+            ...prev,
+            [selectedMenuItem.id]: false,
+          }))
+        }
+      }, 300)
+    }
+  }
+
+  const handleCategoryChange = (
+    _: React.SyntheticEvent,
+    newValue: 'all' | 'sushi' | 'handroll' | 'pancake'
+  ) => {
+    setActiveCategory(newValue)
+  }
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Box
+        component="section"
+        id="menu"
+        sx={{ py: 8, backgroundColor: 'background.default' }}>
+        <Container maxWidth="lg">
+          <Box sx={{ textAlign: 'center', mb: 6 }}>
+            <Typography variant="h2" gutterBottom>
+              正在加载菜单...
+            </Typography>
+          </Box>
+          <Grid container spacing={3}>
+            {[...Array(6)].map((_, index) => (
+              <Grid item xs={12} sm={6} md={4} key={index}>
+                <Card>
+                  <Skeleton variant="rectangular" height={220} />
+                  <CardContent>
+                    <Skeleton variant="text" height={30} width="70%" />
+                    <Skeleton variant="text" height={20} width="40%" />
+                    <Skeleton variant="text" height={60} />
+                  </CardContent>
+                  <CardActions>
+                    <Skeleton variant="rectangular" height={36} width={120} />
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Container>
+      </Box>
+    )
+  }
 
   return (
-    <section
+    <Box
+      component="section"
       id="menu"
-      ref={sectionRef}
-      className="py-16 md:py-20 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
-      {/* Decorative elements */}
-      <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-sushi-gold via-sushi-red to-sushi-gold"></div>
-
-      <motion.div
-        className="absolute -right-24 top-40 w-48 h-48 rounded-full bg-sushi-gold/5 blur-3xl"
-        animate={{
-          scale: isInView ? [0.8, 1.2, 0.8] : 0.8,
-          opacity: isInView ? [0.3, 0.6, 0.3] : 0.3,
-        }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-      />
-
-      <motion.div
-        className="absolute -left-24 bottom-40 w-64 h-64 rounded-full bg-sushi-red/5 blur-3xl"
-        animate={{
-          scale: isInView ? [0.7, 1, 0.7] : 0.7,
-          opacity: isInView ? [0.2, 0.4, 0.2] : 0.2,
-        }}
-        transition={{
-          duration: 10,
-          repeat: Infinity,
-          ease: 'easeInOut',
-          delay: 1,
+      sx={{
+        py: { xs: 6, md: 10 },
+        background: `linear-gradient(180deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`,
+        position: 'relative',
+      }}>
+      {/* Decorative element */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '4px',
+          background: `linear-gradient(to right, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
         }}
       />
 
-      <div className="container-custom relative z-10">
-        <motion.div
-          className="text-center mb-12"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.8 }}>
-          <h2 className="section-heading">
-            <span className="relative inline-block">
-              我们的
-              <span className="heading-accent"> 菜单</span>
-              <motion.span
-                className="absolute -bottom-2 left-0 w-full h-1 bg-sushi-gold/70"
-                initial={{ scaleX: 0, originX: 0 }}
-                whileInView={{ scaleX: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.3, duration: 0.8 }}></motion.span>
-            </span>
-          </h2>
-          <p className="text-gray-600 max-w-2xl mx-auto mobile-friendly-text">
-            发现我们精选的使用最优质食材新鲜制作的寿司。每一份都精心制作，为您带来正宗的日本风味。
-          </p>
+      <Container maxWidth="lg">
+        <Box sx={{ textAlign: 'center', mb: 6 }}>
+          <Typography
+            variant="h2"
+            component="h2"
+            sx={{
+              fontWeight: 700,
+              mb: 2,
+              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+              backgroundClip: 'text',
+              WebkitBackgroundClip: 'text',
+              color: 'transparent',
+              display: 'inline-block',
+              position: 'relative',
+            }}>
+            我们的菜单
+          </Typography>
+          <Typography
+            variant="subtitle1"
+            color="text.secondary"
+            sx={{ maxWidth: 700, mx: 'auto' }}>
+            发现我们精选的使用最优质食材新鲜制作的美食。每一份都精心制作，为您带来美妙的味觉体验。
+          </Typography>
+        </Box>
 
-          {/* Featured items Carousel for mobile */}
-          <div className="mt-10 mb-8 overflow-hidden md:hidden">
-            <h3 className="text-xl font-display font-medium mb-4 text-sushi-black">
-              特色菜品
-            </h3>
-            <div className="flex overflow-x-auto pb-4 gap-4 snap-x scrollbar-hide">
-              {featuredItems.map((item, index) => (
-                <div
-                  key={`featured-${index}`}
-                  className="min-w-[85vw] xs:min-w-[250px] snap-center flex-shrink-0 rounded-xl overflow-hidden shadow-md bg-white">
-                  <div className="h-40 overflow-hidden">
-                    <img
-                      src={item.image || fallbackImageUrl}
-                      alt={item.name}
-                      className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
+        {/* Featured items section - Only on mobile and tablet */}
+        {(isMobile || isTablet) && featuredItems.length > 0 && (
+          <Box sx={{ mb: 6 }}>
+            <Typography
+              variant="h5"
+              sx={{ mb: 2, display: 'flex', alignItems: 'center' }}>
+              特色菜品{' '}
+              <HotIcon sx={{ ml: 1, color: theme.palette.warning.main }} />
+            </Typography>
+            <Box
+              sx={{
+                display: 'flex',
+                overflowX: 'auto',
+                pb: 2,
+                gap: 2,
+                '&::-webkit-scrollbar': { height: '4px' },
+                '&::-webkit-scrollbar-track': {
+                  background: theme.palette.background.default,
+                },
+                '&::-webkit-scrollbar-thumb': {
+                  background: theme.palette.primary.main,
+                  borderRadius: '4px',
+                },
+              }}>
+              {featuredItems.map((item) => (
+                <Card
+                  key={`featured-${item.id}`}
+                  sx={{
+                    minWidth: 240,
+                    maxWidth: 280,
+                    borderColor: theme.palette.warning.light,
+                    borderWidth: 2,
+                    borderStyle: 'solid',
+                    flexShrink: 0,
+                    height: 400, // Fixed height for consistency
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}>
+                  <CardImageContainer>
+                    <StyledCardMedia
+                      image={item.image || fallbackImageUrl}
+                      title={item.name}
                       onError={handleImageError}
                     />
-                  </div>
-                  <div className="p-4">
-                    <div className="flex justify-between items-start">
-                      <h4 className="text-lg font-medium">{item.name}</h4>
-                      <span className="text-lg font-bold text-sushi-red">
-                        {item.price}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                      {item.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Category filter */}
-          <div className="flex justify-center flex-wrap mt-8 gap-3">
-            {categories.map((category) => (
-              <motion.button
-                key={category.id}
-                onClick={() => setActiveCategory(category.id as any)}
-                className={`px-5 py-2 rounded-full text-sm font-medium border relative overflow-hidden
-                  ${
-                    activeCategory === category.id
-                      ? 'text-white border-sushi-red'
-                      : 'text-gray-700 border-gray-200 hover:border-gray-300'
-                  } transition-all duration-300`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}>
-                <span className="relative z-10">{category.label}</span>
-                {activeCategory === category.id && (
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-sushi-red to-sushi-accent"
-                    layoutId="activeCategoryBg"
-                    initial={false}
-                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                  />
-                )}
-              </motion.button>
-            ))}
-          </div>
-        </motion.div>
-
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeCategory}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}>
-            <motion.div
-              variants={container}
-              initial="hidden"
-              whileInView="show"
-              viewport={{ once: true, margin: '-100px' }}
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredItems.map((menuItem, index) => (
-                <motion.div
-                  key={`${activeCategory}-${index}`}
-                  variants={item}
-                  whileHover={{ y: -5 }}
-                  className="bg-white rounded-xl shadow-sm hover:shadow-md overflow-hidden transition-all duration-300 border border-gray-100 h-full">
-                  {menuItem.image && (
-                    <div className="h-40 overflow-hidden">
-                      <img
-                        src={menuItem.image}
-                        alt={menuItem.name}
-                        onError={handleImageError}
-                        className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
+                    <Box sx={{ position: 'absolute', top: 10, right: 10 }}>
+                      <Chip
+                        icon={<HotIcon />}
+                        label="特色"
+                        size="small"
+                        sx={{
+                          backgroundColor: theme.palette.warning.main,
+                          color: 'white',
+                          fontWeight: 'bold',
+                        }}
                       />
-                    </div>
-                  )}
-                  <div className="p-5">
-                    <div className="flex justify-between items-start mb-3">
-                      <h3 className="text-lg font-semibold text-sushi-black">
-                        {menuItem.name}
-                        <span className="block text-sm font-normal text-gray-500 mt-1">
-                          {menuItem.category === 'sushi'
-                            ? '寿司 / Sushi'
-                            : '手卷 / Hand Roll'}
-                        </span>
-                      </h3>
-                      <div className="text-lg font-bold min-w-14 text-right">
-                        <span className="text-sushi-accent">
-                          {menuItem.price}
-                        </span>
-                      </div>
-                    </div>
-                    {menuItem.description && (
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                        {menuItem.description}
-                      </p>
-                    )}
-                    <div className="mt-3 flex items-center justify-between">
-                      <div className="flex items-center">
-                        <span
-                          className={`text-xs px-2 py-1 rounded-full ${
-                            menuItem.category === 'sushi'
-                              ? 'bg-sushi-gold/10 text-sushi-gold'
-                              : 'bg-sushi-red/10 text-sushi-red'
-                          }`}>
-                          {menuItem.category === 'sushi' ? '寿司' : '手卷'}
-                        </span>
-                        {menuItem.featured && (
-                          <span className="ml-2 text-xs px-2 py-1 bg-gray-100 rounded-full text-gray-600">
-                            特色
-                          </span>
-                        )}
-                      </div>
-                      <button className="text-sm text-sushi-gold hover:text-sushi-red transition-colors">
-                        <span className="font-medium">+</span> 添加
-                      </button>
-                    </div>
-                  </div>
-                </motion.div>
+                    </Box>
+                  </CardImageContainer>
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        mb: 1,
+                      }}>
+                      <Typography variant="h6" component="h3">
+                        {item.name}
+                      </Typography>
+                      <PriceChip label={item.price} size="small" />
+                    </Box>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ height: 40, overflow: 'hidden' }}>
+                      {item.description}
+                    </Typography>
+                  </CardContent>
+                  <CardActions sx={{ p: 2 }}>
+                    <AnimatePresence mode="wait">
+                      {!itemQuantities[item.id] ? (
+                        <motion.div
+                          key="add-btn"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.2 }}
+                          style={{ width: '100%' }}>
+                          <ReserveButton
+                            fullWidth
+                            variant="contained"
+                            startIcon={<ShoppingCartIcon />}
+                            onClick={() => handleAddToCart(item)}
+                            disabled={isAddingToCart[item.id]}>
+                            {isAddingToCart[item.id] ? '预定中...' : '预定'}
+                          </ReserveButton>
+                        </motion.div>
+                      ) : (
+                        <motion.div
+                          key="quantity-control"
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -10 }}
+                          transition={{ duration: 0.2 }}
+                          style={{ width: '100%' }}>
+                          <QuantityControlContainer>
+                            <QuantityButton
+                              aria-label="减少数量"
+                              onClick={() => handleRemoveFromCart(item)}
+                              size="small">
+                              <RemoveIcon fontSize="small" />
+                            </QuantityButton>
+
+                            <QuantityText variant="h6">
+                              {itemQuantities[item.id]?.quantity || 0}
+                            </QuantityText>
+
+                            <QuantityButton
+                              aria-label="增加数量"
+                              onClick={() => handleAddToCart(item)}
+                              size="small"
+                              sx={{
+                                backgroundColor: theme.palette.primary.main,
+                                color: 'white',
+                                '&:hover': {
+                                  backgroundColor: theme.palette.primary.dark,
+                                },
+                              }}>
+                              <AddIcon fontSize="small" />
+                            </QuantityButton>
+                          </QuantityControlContainer>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </CardActions>
+                </Card>
               ))}
-            </motion.div>
-          </motion.div>
-        </AnimatePresence>
+            </Box>
+          </Box>
+        )}
+
+        {/* Category filter */}
+        <Box sx={{ mb: 6, display: 'flex', justifyContent: 'center' }}>
+          <Paper elevation={0} sx={{ backgroundColor: 'background.default' }}>
+            <Tabs
+              value={activeCategory}
+              onChange={handleCategoryChange}
+              indicatorColor="primary"
+              textColor="primary"
+              centered={!isMobile}
+              variant={isMobile ? 'scrollable' : 'standard'}
+              scrollButtons="auto"
+              sx={{
+                '.MuiTabs-indicator': {
+                  height: 3,
+                  borderRadius: '2px 2px 0 0',
+                },
+              }}>
+              <CategoryTab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <RestaurantIcon sx={{ mr: 1, fontSize: 18 }} />
+                    全部菜单
+                  </Box>
+                }
+                value="all"
+              />
+              <CategoryTab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ marginRight: '8px' }}>🍣</span>
+                    寿司
+                  </Box>
+                }
+                value="sushi"
+              />
+              <CategoryTab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ marginRight: '8px' }}>🍙</span>
+                    手卷
+                  </Box>
+                }
+                value="handroll"
+              />
+              <CategoryTab
+                label={
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ marginRight: '8px' }}>🥞</span>
+                    煎饼
+                  </Box>
+                }
+                value="pancake"
+              />
+            </Tabs>
+          </Paper>
+        </Box>
+
+        {/* Menu items grid */}
+        <MotionContainer
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}>
+          <Grid container spacing={3}>
+            {filteredItems.length > 0 ? (
+              filteredItems.map((menuItem) => (
+                <Grid
+                  item
+                  xs={12}
+                  sm={6}
+                  md={4}
+                  key={`${activeCategory}-${menuItem.id}`}>
+                  <MotionItem
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}>
+                    <StyledCard sx={{ height: 450 }}>
+                      {' '}
+                      {/* Fixed height for consistency */}
+                      {menuItem.image && (
+                        <CardImageContainer>
+                          <StyledCardMedia
+                            image={menuItem.image}
+                            title={menuItem.name}
+                            onError={handleImageError}
+                          />
+                          {menuItem.featured && (
+                            <Box
+                              sx={{ position: 'absolute', top: 10, right: 10 }}>
+                              <Chip
+                                icon={<HotIcon />}
+                                label="特色"
+                                size="small"
+                                sx={{
+                                  backgroundColor: theme.palette.warning.main,
+                                  color: 'white',
+                                  fontWeight: 'bold',
+                                }}
+                              />
+                            </Box>
+                          )}
+                          <Box sx={{ position: 'absolute', top: 10, left: 10 }}>
+                            <Chip
+                              label={
+                                menuItem.category === 'sushi'
+                                  ? '寿司'
+                                  : menuItem.category === 'handroll'
+                                  ? '手卷'
+                                  : '煎饼'
+                              }
+                              size="small"
+                              sx={{
+                                backgroundColor:
+                                  menuItem.category === 'sushi'
+                                    ? theme.palette.secondary.main
+                                    : menuItem.category === 'handroll'
+                                    ? theme.palette.primary.main
+                                    : theme.palette.warning.main,
+                                color: 'white',
+                              }}
+                            />
+                          </Box>
+                        </CardImageContainer>
+                      )}
+                      <CardContent sx={{ flexGrow: 1 }}>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start',
+                            mb: 1,
+                          }}>
+                          <Typography
+                            variant="h6"
+                            component="h3"
+                            sx={{ fontWeight: 'bold' }}>
+                            {menuItem.name}
+                          </Typography>
+                          <PriceChip label={menuItem.price} size="small" />
+                        </Box>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ mb: 2, height: 40, overflow: 'hidden' }}>
+                          {menuItem.description}
+                        </Typography>
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}>
+                          <Chip
+                            label={
+                              <Typography variant="caption">
+                                {menuItem.category === 'sushi'
+                                  ? '寿司 / Sushi'
+                                  : menuItem.category === 'handroll'
+                                  ? '手卷 / Hand Roll'
+                                  : '煎饼 / Pancake'}
+                              </Typography>
+                            }
+                            size="small"
+                            sx={{
+                              backgroundColor: 'background.default',
+                              border: '1px solid',
+                              borderColor:
+                                menuItem.category === 'sushi'
+                                  ? 'secondary.light'
+                                  : menuItem.category === 'handroll'
+                                  ? 'primary.light'
+                                  : 'warning.light',
+                            }}
+                          />
+                          {menuItem.featured && (
+                            <IconButton
+                              size="small"
+                              color="warning"
+                              sx={{
+                                animation: 'pulse 2s infinite',
+                                '@keyframes pulse': {
+                                  '0%': { transform: 'scale(0.95)' },
+                                  '70%': { transform: 'scale(1)' },
+                                  '100%': { transform: 'scale(0.95)' },
+                                },
+                              }}>
+                              <FavoriteIcon fontSize="small" />
+                            </IconButton>
+                          )}
+                        </Box>
+                      </CardContent>
+                      <Divider />
+                      <CardActions sx={{ p: 2 }}>
+                        <AnimatePresence mode="wait">
+                          {!itemQuantities[menuItem.id] ? (
+                            <motion.div
+                              key="add-btn"
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              transition={{ duration: 0.2 }}
+                              style={{ width: '100%' }}>
+                              <ReserveButton
+                                fullWidth
+                                variant="contained"
+                                startIcon={<ShoppingCartIcon />}
+                                onClick={() => handleAddToCart(menuItem)}
+                                disabled={isAddingToCart[menuItem.id]}>
+                                {isAddingToCart[menuItem.id]
+                                  ? '预定中...'
+                                  : '预定'}
+                              </ReserveButton>
+                            </motion.div>
+                          ) : (
+                            <motion.div
+                              key="quantity-control"
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              transition={{ duration: 0.2 }}
+                              style={{ width: '100%' }}>
+                              <QuantityControlContainer>
+                                <QuantityButton
+                                  aria-label="减少数量"
+                                  onClick={() => handleRemoveFromCart(menuItem)}
+                                  size="small">
+                                  <RemoveIcon fontSize="small" />
+                                </QuantityButton>
+
+                                <QuantityText variant="h6">
+                                  {itemQuantities[menuItem.id]?.quantity || 0}
+                                </QuantityText>
+
+                                <QuantityButton
+                                  aria-label="增加数量"
+                                  onClick={() => handleAddToCart(menuItem)}
+                                  size="small"
+                                  sx={{
+                                    backgroundColor: theme.palette.primary.main,
+                                    color: 'white',
+                                    '&:hover': {
+                                      backgroundColor:
+                                        theme.palette.primary.dark,
+                                    },
+                                  }}>
+                                  <AddIcon fontSize="small" />
+                                </QuantityButton>
+                              </QuantityControlContainer>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </CardActions>
+                    </StyledCard>
+                  </MotionItem>
+                </Grid>
+              ))
+            ) : (
+              <Grid item xs={12}>
+                <Box sx={{ textAlign: 'center', py: 8 }}>
+                  <Typography>暂无该分类的菜品</Typography>
+                </Box>
+              </Grid>
+            )}
+          </Grid>
+        </MotionContainer>
 
         {/* View all link */}
-        <div className="text-center mt-12">
-          <motion.a
+        <Box sx={{ textAlign: 'center', mt: 6 }}>
+          <Button
+            variant="contained"
+            color="secondary"
+            size="large"
             href="#contact"
-            className="inline-flex items-center text-sushi-red hover:text-sushi-gold transition-colors"
-            whileHover={{ x: 5 }}>
+            sx={{
+              borderRadius: '50px',
+              px: 4,
+              py: 1.5,
+              boxShadow: theme.shadows[4],
+            }}>
             查看完整菜单
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 ml-1"
-              viewBox="0 0 20 20"
-              fill="currentColor">
-              <path
-                fillRule="evenodd"
-                d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </motion.a>
-        </div>
-      </div>
-    </section>
+          </Button>
+        </Box>
+
+        {/* Companion Selection Dialog */}
+        <CompanionSelectionDialog
+          open={companionDialogOpen}
+          onClose={() => setCompanionDialogOpen(false)}
+          onAddToCart={handleAddPancakeWithCompanions}
+          menuItem={selectedMenuItem}
+        />
+      </Container>
+    </Box>
   )
 }
 
