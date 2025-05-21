@@ -14,15 +14,24 @@ import {
 } from '@mui/material'
 import type { MenuItem } from '../types/menu'
 
+// Define AddOnOption interface first
+interface AddOnOption {
+  name: string
+  price: number
+}
+
+// Then export it as a type
+export type { AddOnOption }
+
 interface CompanionSelectionDialogProps {
   open: boolean
   onClose: () => void
-  onAddToCart: (companions: string[]) => void
+  onAddToCart: (addOns: AddOnOption[]) => void
   menuItem: MenuItem | null
 }
 
-// Available companions with their prices
-const PANCAKE_COMPANIONS = [
+// Available companions/add-ons with their prices
+const JIANBING_ADDONS: (AddOnOption & { id: string })[] = [
   { id: 'seaweed', name: '加海苔', price: 3 },
   { id: 'meat_floss', name: '加肉松', price: 4 },
   { id: 'ham', name: '加火腿肉', price: 6 },
@@ -36,33 +45,41 @@ const CompanionSelectionDialog = ({
   menuItem,
 }: CompanionSelectionDialogProps) => {
   const theme = useTheme()
-  const [selectedCompanions, setSelectedCompanions] = useState<string[]>([])
+  const [selectedCompanionNames, setSelectedCompanionNames] = useState<
+    string[]
+  >([])
 
   // Calculate additional price
-  const additionalPrice = selectedCompanions.reduce((total, companion) => {
-    const comp = PANCAKE_COMPANIONS.find((c) => c.name === companion)
-    return total + (comp ? comp.price : 0)
+  const additionalPrice = selectedCompanionNames.reduce((total, name) => {
+    const addOn = JIANBING_ADDONS.find((a) => a.name === name)
+    return total + (addOn ? addOn.price : 0)
   }, 0)
 
   // Calculate total price
   const basePrice = menuItem ? parseFloat(menuItem.price.replace('元', '')) : 0
   const totalPrice = basePrice + additionalPrice
 
-  const handleToggleCompanion = (companion: string) => {
-    if (selectedCompanions.includes(companion)) {
-      setSelectedCompanions(selectedCompanions.filter((c) => c !== companion))
+  const handleToggleCompanion = (companionName: string) => {
+    if (selectedCompanionNames.includes(companionName)) {
+      setSelectedCompanionNames(
+        selectedCompanionNames.filter((c) => c !== companionName)
+      )
     } else {
-      setSelectedCompanions([...selectedCompanions, companion])
+      setSelectedCompanionNames([...selectedCompanionNames, companionName])
     }
   }
 
-  const handleAddToCart = () => {
-    onAddToCart(selectedCompanions)
-    setSelectedCompanions([]) // Reset selections
+  const handleAddToCartInternal = () => {
+    const selectedAddOnObjects = selectedCompanionNames.map((name) => {
+      const addOn = JIANBING_ADDONS.find((a) => a.name === name)!
+      return { name: addOn.name, price: addOn.price }
+    })
+    onAddToCart(selectedAddOnObjects)
+    setSelectedCompanionNames([])
   }
 
   const handleClose = () => {
-    setSelectedCompanions([]) // Reset selections
+    setSelectedCompanionNames([])
     onClose()
   }
 
@@ -119,44 +136,42 @@ const CompanionSelectionDialog = ({
                   flexWrap: 'wrap',
                   gap: 2,
                 }}>
-                {PANCAKE_COMPANIONS.map((companion) => (
-                  <Box key={companion.id} sx={{ width: 'calc(50% - 8px)' }}>
+                {JIANBING_ADDONS.map((addOn) => (
+                  <Box key={addOn.id} sx={{ width: 'calc(50% - 8px)' }}>
                     <Paper
                       elevation={
-                        selectedCompanions.includes(companion.name) ? 3 : 1
+                        selectedCompanionNames.includes(addOn.name) ? 3 : 1
                       }
                       sx={{
                         p: 2,
-                        border: selectedCompanions.includes(companion.name)
+                        border: selectedCompanionNames.includes(addOn.name)
                           ? `2px solid ${theme.palette.primary.main}`
                           : '1px solid transparent',
                         cursor: 'pointer',
                         transition: 'all 0.2s',
-                        bgcolor: selectedCompanions.includes(companion.name)
+                        bgcolor: selectedCompanionNames.includes(addOn.name)
                           ? 'rgba(255, 152, 0, 0.1)'
                           : 'background.paper',
                         '&:hover': {
                           bgcolor: 'rgba(255, 152, 0, 0.05)',
                         },
                       }}
-                      onClick={() => handleToggleCompanion(companion.name)}>
+                      onClick={() => handleToggleCompanion(addOn.name)}>
                       <Box
                         sx={{
                           display: 'flex',
                           justifyContent: 'space-between',
                           alignItems: 'center',
                         }}>
-                        <Typography variant="body1">
-                          {companion.name}
-                        </Typography>
+                        <Typography variant="body1">{addOn.name}</Typography>
                         <Chip
                           size="small"
-                          label={`+${companion.price} 元`}
+                          label={`+${addOn.price} 元`}
                           sx={{
-                            bgcolor: selectedCompanions.includes(companion.name)
+                            bgcolor: selectedCompanionNames.includes(addOn.name)
                               ? theme.palette.primary.main
                               : theme.palette.grey[200],
-                            color: selectedCompanions.includes(companion.name)
+                            color: selectedCompanionNames.includes(addOn.name)
                               ? 'white'
                               : 'text.primary',
                           }}
@@ -168,7 +183,7 @@ const CompanionSelectionDialog = ({
               </Box>
             </Box>
 
-            {selectedCompanions.length > 0 && (
+            {selectedCompanionNames.length > 0 && (
               <Box
                 sx={{
                   mt: 3,
@@ -180,11 +195,11 @@ const CompanionSelectionDialog = ({
                   已选择的伴侣:
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {selectedCompanions.map((companion) => (
+                  {selectedCompanionNames.map((name) => (
                     <Chip
-                      key={companion}
-                      label={companion}
-                      onDelete={() => handleToggleCompanion(companion)}
+                      key={name}
+                      label={name}
+                      onDelete={() => handleToggleCompanion(name)}
                       color="primary"
                     />
                   ))}
@@ -216,7 +231,7 @@ const CompanionSelectionDialog = ({
           取消
         </Button>
         <Button
-          onClick={handleAddToCart}
+          onClick={handleAddToCartInternal}
           variant="contained"
           color="primary"
           sx={{ px: 3 }}>

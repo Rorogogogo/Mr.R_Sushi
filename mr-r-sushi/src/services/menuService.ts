@@ -2,7 +2,15 @@ import type { MenuItem } from '../types/menu'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5131/api'
 
-export async function getAllMenuItems(): Promise<MenuItem[]> {
+// Define a type for the API response that includes the $values structure
+interface ApiResponse<T> {
+  success: boolean
+  data: T[] | { $id: string; $values: T[] }
+  message?: string
+  totalCount?: number
+}
+
+export async function getAllMenuItems(): Promise<ApiResponse<MenuItem>> {
   try {
     const response = await fetch(`${API_URL}/menu`)
 
@@ -12,23 +20,18 @@ export async function getAllMenuItems(): Promise<MenuItem[]> {
       console.error('Fetch error response text:', responseText)
       throw new Error('Failed to fetch menu items')
     }
-
-    const data = await response.json()
-
-    if (data.success && data.data) {
-      return data.data
-    }
-
-    return []
+    // Return the full response object now, not just data.data
+    return (await response.json()) as ApiResponse<MenuItem>
   } catch (error) {
     console.error('Error fetching menu items:', error)
-    return []
+    // Return a default error structure or rethrow
+    return { success: false, data: [], message: (error as Error).message }
   }
 }
 
 export async function getMenuItemsByCategory(
   category: string
-): Promise<MenuItem[]> {
+): Promise<ApiResponse<MenuItem>> {
   try {
     const response = await fetch(`${API_URL}/menu/category/${category}`)
 
@@ -39,20 +42,14 @@ export async function getMenuItemsByCategory(
       throw new Error(`Failed to fetch ${category} menu items`)
     }
 
-    const data = await response.json()
-
-    if (data.success && data.data) {
-      return data.data
-    }
-
-    return []
+    return (await response.json()) as ApiResponse<MenuItem>
   } catch (error) {
     console.error(`Error fetching ${category} menu items:`, error)
-    return []
+    return { success: false, data: [], message: (error as Error).message }
   }
 }
 
-export async function getFeaturedItems(): Promise<MenuItem[]> {
+export async function getFeaturedItems(): Promise<ApiResponse<MenuItem>> {
   try {
     const response = await fetch(`${API_URL}/menu/featured`)
 
@@ -63,15 +60,9 @@ export async function getFeaturedItems(): Promise<MenuItem[]> {
       throw new Error('Failed to fetch featured menu items')
     }
 
-    const data = await response.json()
-
-    if (data.success && data.data) {
-      return data.data
-    }
-
-    return []
+    return (await response.json()) as ApiResponse<MenuItem>
   } catch (error) {
     console.error('Error fetching featured menu items:', error)
-    return []
+    return { success: false, data: [], message: (error as Error).message }
   }
 }

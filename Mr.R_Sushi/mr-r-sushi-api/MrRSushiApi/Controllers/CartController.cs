@@ -3,7 +3,12 @@ using Microsoft.EntityFrameworkCore;
 using MrRSushiApi.Data;
 using MrRSushiApi.Models;
 using MrRSushiApi.Models.DTOs;
-using System.Globalization;
+using MrRSushiApi.Services;
+using System.Text.Json; // For JSON serialization
+using System.Linq; // For OrderBy
+using System.Collections.Generic; // For List<T>
+using System.Threading.Tasks; // For Task<T>
+using System; // For DateTime
 
 namespace MrRSushiApi.Controllers;
 
@@ -12,123 +17,152 @@ namespace MrRSushiApi.Controllers;
 public class CartController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly IEmailService _emailService;
     
-    public CartController(ApplicationDbContext context)
+    public CartController(ApplicationDbContext context, IEmailService emailService)
     {
         _context = context;
+        _emailService = emailService;
     }
     
     // 获取购物车
     [HttpGet("{sessionId}")]
-    public async Task<ActionResult<ApiResponseDto<List<CartItem>>>> GetCartItems(string sessionId)
+    public async Task<ActionResult<ApiResponseDto<List<CartItemDto>>>> GetCartItems(string sessionId)
     {
-        var cartItems = await _context.CartItems
+        var cartItemsEntities = await _context.CartItems
             .Include(ci => ci.MenuItem)
             .Where(ci => ci.SessionId == sessionId)
             .ToListAsync();
+
+        var cartItemDtos = cartItemsEntities.Select(ci => new CartItemDto
+        {
+            Id = ci.Id,
+            MenuItemId = ci.MenuItemId,
+            Quantity = ci.Quantity,
+            MenuItem = ci.MenuItem,
+            AddOns = !string.IsNullOrEmpty(ci.AddOnsJson) 
+                       ? JsonSerializer.Deserialize<List<AddOnDto>>(ci.AddOnsJson) 
+                       : new List<AddOnDto>(),
+            SessionId = ci.SessionId
+        }).ToList();
             
-        return new ApiResponseDto<List<CartItem>>
+        return new ApiResponseDto<List<CartItemDto>>
         {
             Success = true,
-            Data = cartItems
+            Data = cartItemDtos
         };
     }
     
     // 添加物品到购物车
     [HttpPost]
-    public async Task<ActionResult<ApiResponseDto<CartItem>>> AddToCart(CartItem cartItem)
+    public async Task<ActionResult<ApiResponseDto<CartItemDto>>> AddToCart([FromBody] AddToCartRequestDto requestDto)
     {
+        string? requestAddOnsJson = requestDto.AddOns != null && requestDto.AddOns.Any() 
+                                   ? JsonSerializer.Serialize(requestDto.AddOns.OrderBy(a => a.Name)) 
+                                   : null;
+
         var existingItem = await _context.CartItems
-            .FirstOrDefaultAsync(ci => ci.SessionId == cartItem.SessionId && ci.MenuItemId == cartItem.MenuItemId);
+            .FirstOrDefaultAsync(ci => ci.SessionId == requestDto.SessionId && 
+                                     ci.MenuItemId == requestDto.MenuItemId &&
+                                     ((string.IsNullOrEmpty(ci.AddOnsJson) && string.IsNullOrEmpty(requestAddOnsJson)) || ci.AddOnsJson == requestAddOnsJson));
             
+        CartItem itemToSave;
         if (existingItem != null)
         {
-            // 如果已存在相同物品，增加数量
-            existingItem.Quantity += cartItem.Quantity;
-            _context.CartItems.Update(existingItem);
+            existingItem.Quantity += requestDto.Quantity;
+            itemToSave = existingItem;
         }
         else
         {
-            // 否则添加新物品
-            _context.CartItems.Add(cartItem);
+            var newCartItem = new CartItem
+            {
+                SessionId = requestDto.SessionId,
+                MenuItemId = requestDto.MenuItemId,
+                Quantity = requestDto.Quantity,
+                AddOnsJson = requestAddOnsJson,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.CartItems.Add(newCartItem);
+            itemToSave = newCartItem;
         }
         
         await _context.SaveChangesAsync();
-        
-        // 获取完整的购物车项，包括MenuItem
-        int idToFind = existingItem != null ? existingItem.Id : cartItem.Id;
-        var savedItem = await _context.CartItems
-            .Include(ci => ci.MenuItem)
-            .FirstOrDefaultAsync(ci => ci.Id == idToFind);
+        await _context.Entry(itemToSave).Reference(ci => ci.MenuItem).LoadAsync();
+
+        var responseDto = new CartItemDto
+        {
+            Id = itemToSave.Id,
+            MenuItemId = itemToSave.MenuItemId,
+            Quantity = itemToSave.Quantity,
+            MenuItem = itemToSave.MenuItem,
+            AddOns = !string.IsNullOrEmpty(itemToSave.AddOnsJson)
+                        ? JsonSerializer.Deserialize<List<AddOnDto>>(itemToSave.AddOnsJson)
+                        : new List<AddOnDto>(),
+            SessionId = itemToSave.SessionId
+        };
             
-        return new ApiResponseDto<CartItem>
+        return new ApiResponseDto<CartItemDto>
         {
             Success = true,
-            Data = savedItem,
+            Data = responseDto,
             Message = "成功添加到购物车"
         };
+    }
+
+    // DTO for UpdateCartItem payload
+    public class UpdateCartQuantityRequestDto
+    {
+        public int Quantity { get; set; }
+        // If you ever need to update AddOns simultaneously, add them here
+        // public List<AddOnDto>? AddOns { get; set; }
     }
     
     // 更新购物车项数量
     [HttpPut("{id}")]
-    public async Task<ActionResult<ApiResponseDto<CartItem>>> UpdateCartItem(int id, [FromBody] int quantity)
+    public async Task<ActionResult<ApiResponseDto<CartItemDto>>> UpdateCartItem(int id, [FromBody] UpdateCartQuantityRequestDto requestDto)
     {
-        var cartItem = await _context.CartItems.FindAsync(id);
+        var cartItemEntity = await _context.CartItems
+                                     .Include(ci => ci.MenuItem) 
+                                     .FirstOrDefaultAsync(ci => ci.Id == id);
         
-        if (cartItem == null)
+        if (cartItemEntity == null)
         {
-            return NotFound(new ApiResponseDto
-            {
-                Success = false,
-                Message = "购物车项未找到"
-            });
+            return NotFound(new ApiResponseDto<CartItemDto> { Success = false, Message = "购物车项未找到" });
         }
         
-        if (quantity <= 0)
+        if (requestDto.Quantity <= 0)
         {
-            // 移除购物车项
-            _context.CartItems.Remove(cartItem);
+            _context.CartItems.Remove(cartItemEntity);
             await _context.SaveChangesAsync();
-            
-            return new ApiResponseDto<CartItem>
-            {
-                Success = true,
-                Message = "物品已从购物车中移除"
-            };
+            return Ok(new ApiResponseDto<CartItemDto> { Success = true, Message = "物品已从购物车中移除" });
         }
         
-        cartItem.Quantity = quantity;
+        cartItemEntity.Quantity = requestDto.Quantity;
         await _context.SaveChangesAsync();
-        
-        // 获取包含MenuItem的完整购物车项
-        var updatedItem = await _context.CartItems
-            .Include(ci => ci.MenuItem)
-            .FirstOrDefaultAsync(ci => ci.Id == id);
-            
-        return new ApiResponseDto<CartItem>
+
+        var responseDto = new CartItemDto
         {
-            Success = true,
-            Data = updatedItem,
-            Message = "购物车已更新"
+            Id = cartItemEntity.Id,
+            MenuItemId = cartItemEntity.MenuItemId,
+            Quantity = cartItemEntity.Quantity,
+            MenuItem = cartItemEntity.MenuItem,
+            AddOns = !string.IsNullOrEmpty(cartItemEntity.AddOnsJson)
+                        ? JsonSerializer.Deserialize<List<AddOnDto>>(cartItemEntity.AddOnsJson)
+                        : new List<AddOnDto>(),
+            SessionId = cartItemEntity.SessionId
         };
+            
+        return Ok(new ApiResponseDto<CartItemDto> { Success = true, Data = responseDto, Message = "购物车已更新" });
     }
     
     // 清空购物车
     [HttpDelete("{sessionId}")]
     public async Task<ActionResult<ApiResponseDto>> ClearCart(string sessionId)
     {
-        var cartItems = await _context.CartItems
-            .Where(ci => ci.SessionId == sessionId)
-            .ToListAsync();
-            
+        var cartItems = await _context.CartItems.Where(ci => ci.SessionId == sessionId).ToListAsync();
         _context.CartItems.RemoveRange(cartItems);
         await _context.SaveChangesAsync();
-        
-        return new ApiResponseDto
-        {
-            Success = true,
-            Message = "购物车已清空"
-        };
+        return Ok(new ApiResponseDto { Success = true, Message = "购物车已清空" });
     }
     
     // 移除单个购物车项
@@ -136,158 +170,100 @@ public class CartController : ControllerBase
     public async Task<ActionResult<ApiResponseDto>> RemoveCartItem(int id)
     {
         var cartItem = await _context.CartItems.FindAsync(id);
-        
-        if (cartItem == null)
-        {
-            return NotFound(new ApiResponseDto
-            {
-                Success = false,
-                Message = "购物车项未找到"
-            });
-        }
-        
+        if (cartItem == null) return NotFound(new ApiResponseDto { Success = false, Message = "购物车项未找到" });
         _context.CartItems.Remove(cartItem);
         await _context.SaveChangesAsync();
-        
-        return new ApiResponseDto
-        {
-            Success = true,
-            Message = "物品已从购物车中移除"
-        };
+        return Ok(new ApiResponseDto { Success = true, Message = "物品已从购物车中移除" });
     }
     
     // Checkout endpoint - convert cart to order
     [HttpPost("{sessionId}/checkout")]
-    public async Task<ActionResult<ApiResponseDto<Order>>> Checkout(string sessionId, [FromBody] List<CartItemDto> cartItems)
+    public async Task<ActionResult<ApiResponseDto>> Checkout(string sessionId, [FromBody] OrderCheckoutDto orderRequest)
     {
-        if (cartItems == null || !cartItems.Any())
-        {
-            return BadRequest(new ApiResponseDto
-            {
-                Success = false,
-                Message = "购物车为空"
-            });
-        }
-        
         try
         {
-            // Create a new order with an order number (01-99)
-            Random random = new Random();
-            string orderNumber = random.Next(1, 100).ToString("00");
-            
-            var order = new Order
+            var cartItems = await _context.CartItems
+                .Where(ci => ci.SessionId == sessionId)
+                .Include(ci => ci.MenuItem)
+                .ToListAsync();
+
+            if (!cartItems.Any()) return BadRequest(new ApiResponseDto { Success = false, Message = "购物车为空" });
+
+            // Generate order number using 01-99 loop format
+            // Get the latest order number
+            int lastOrderNumber = 0;
+            var latestOrder = await _context.Orders
+                .OrderByDescending(o => o.Id)
+                .FirstOrDefaultAsync();
+                
+            if (latestOrder != null && int.TryParse(latestOrder.OrderNumber, out int parsedNumber))
             {
-                OrderNumber = orderNumber,
-                CustomerName = "Online Customer", // Default name for online orders
-                PhoneNumber = "",                 // Can be updated later
-                OrderDate = DateTime.UtcNow,
-                Status = "Pending",               // Match the status values from OrderController
-                OrderItems = new List<OrderItem>()
-            };
-            
-            decimal totalAmount = 0;
-            
-            // Convert cart items to order items
-            foreach (var cartItem in cartItems)
-            {
-                // Fetch the menu item for accurate pricing
-                var menuItem = await _context.MenuItems.FindAsync(cartItem.MenuItemId);
-                if (menuItem == null)
-                {
-                    return BadRequest(new ApiResponseDto
-                    {
-                        Success = false,
-                        Message = $"菜品ID {cartItem.MenuItemId} 不存在"
-                    });
-                }
-                
-                // Convert price string like "15元" to decimal
-                decimal unitPrice = 0;
-                if (menuItem.Price != null)
-                {
-                    string priceStr = menuItem.Price.Trim('元');
-                    if (decimal.TryParse(priceStr, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal price))
-                    {
-                        unitPrice = price;
-                    }
-                }
-                
-                // Add companion prices for pancakes
-                decimal companionPrice = 0;
-                string? companionDetails = null;
-                
-                if (cartItem.Companions != null && cartItem.Companions.Any())
-                {
-                    var companionPrices = new Dictionary<string, decimal>
-                    {
-                        { "加海苔", 3 },
-                        { "加肉松", 4 },
-                        { "加火腿肉", 6 },
-                        { "加培根", 7 }
-                    };
-                    
-                    foreach (var companion in cartItem.Companions)
-                    {
-                        if (companionPrices.TryGetValue(companion, out decimal price))
-                        {
-                            companionPrice += price;
-                        }
-                    }
-                    
-                    // Store companion details as comma-separated string
-                    companionDetails = string.Join(", ", cartItem.Companions);
-                }
-                
-                // Create new order item
-                var orderItem = new OrderItem
-                {
-                    MenuItemId = cartItem.MenuItemId,
-                    Quantity = cartItem.Quantity,
-                    UnitPrice = unitPrice + companionPrice, // Include companion prices
-                    CompanionDetails = companionDetails // Use the CompanionDetails field
-                };
-                
-                order.OrderItems.Add(orderItem);
-                totalAmount += orderItem.UnitPrice * orderItem.Quantity;
+                lastOrderNumber = parsedNumber;
             }
             
-            order.TotalAmount = totalAmount;
-            
-            // Save the order
-            _context.Orders.Add(order);
-            await _context.SaveChangesAsync();
-            
-            // Clear the cart
-            var userCartItems = await _context.CartItems
-                .Where(ci => ci.SessionId == sessionId)
-                .ToListAsync();
-                
-            _context.CartItems.RemoveRange(userCartItems);
-            await _context.SaveChangesAsync();
-            
-            return new ApiResponseDto<Order>
+            // Increment and loop between 01-99
+            int newOrderNumber = (lastOrderNumber % 99) + 1;
+            string orderNumber = newOrderNumber.ToString("00");  // Format as 01-99
+
+            var order = new Order
             {
-                Success = true,
-                Data = order,
-                Message = "订单创建成功"
+                CustomerName = orderRequest.CustomerName,
+                PhoneNumber = orderRequest.PhoneNumber,
+                ReservationTime = DateTime.Parse(orderRequest.ReservationTime.ToString("yyyy-MM-dd HH:mm:ss.ffffff")),
+                OrderNumber = orderNumber,
+                OrderDate = DateTime.UtcNow, // Simpler UTC assignment
+                Status = "Pending",
+                TotalAmount = cartItems.Sum(ci => 
+                {
+                    decimal itemTotal = ci.Quantity * decimal.Parse(ci.MenuItem.Price.Trim('元'));
+                    if (!string.IsNullOrEmpty(ci.AddOnsJson)) 
+                    {
+                        var addOns = JsonSerializer.Deserialize<List<AddOnDto>>(ci.AddOnsJson);
+                        itemTotal += addOns.Sum(a => a.Price * ci.Quantity);
+                    }
+                    return itemTotal;
+                })
             };
+            _context.Orders.Add(order);
+            await _context.SaveChangesAsync(); 
+
+            foreach (var cartItem in cartItems)
+            {
+                _context.OrderItems.Add(new OrderItem
+                {
+                    OrderId = order.Id,
+                    MenuItemId = cartItem.MenuItemId,
+                    Quantity = cartItem.Quantity,
+                    UnitPrice = decimal.Parse(cartItem.MenuItem.Price.Trim('元')),
+                    AddOnsJson = cartItem.AddOnsJson,
+                    CompanionDetails = null
+                });
+            }
+            await _context.SaveChangesAsync();
+            
+            // Load the complete order with items and menu items for the email
+            await _context.Entry(order)
+                .Collection(o => o.OrderItems)
+                .LoadAsync();
+                
+            foreach (var orderItem in order.OrderItems)
+            {
+                await _context.Entry(orderItem)
+                    .Reference(oi => oi.MenuItem)
+                    .LoadAsync();
+            }
+            
+            // Send email notification
+            await _emailService.SendOrderConfirmationAsync(order);
+            
+            _context.CartItems.RemoveRange(cartItems);
+            await _context.SaveChangesAsync();
+            return Ok(new ApiResponseDto { Success = true, Message = "订单创建成功", Data = new { orderNumber } });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new ApiResponseDto
-            {
-                Success = false,
-                Message = "订单创建失败: " + ex.Message
-            });
+            Console.WriteLine($"Checkout Error: {ex.ToString()}"); // Log full exception
+            return StatusCode(500, new ApiResponseDto { Success = false, Message = "服务器错误，请稍后重试" });
         }
-    }
-    
-    // Add CartItemDto class to properly deserialize cart items from frontend
-    public class CartItemDto
-    {
-        public int Id { get; set; }
-        public int MenuItemId { get; set; }
-        public int Quantity { get; set; }
-        public List<string>? Companions { get; set; }
     }
 } 

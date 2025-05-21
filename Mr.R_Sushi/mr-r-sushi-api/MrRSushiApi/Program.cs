@@ -1,32 +1,46 @@
 using Microsoft.EntityFrameworkCore;
 using MrRSushiApi.Data;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
-builder.Services.AddControllers();
+
+// Configure JSON serialization to handle circular references
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    });
 
 // Add SQLite
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=MrRSushi.db"));
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// Register email service
+builder.Services.AddScoped<MrRSushiApi.Services.IEmailService, MrRSushiApi.Services.EmailService>();
 
 // Add CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigin", corsBuilder =>
     {
-        corsBuilder.WithOrigins("http://localhost:5176") // Your frontend development URL
-               .AllowAnyMethod()
-               .AllowAnyHeader();
+        corsBuilder.WithOrigins(
+                "http://localhost:5173",
+                "https://localhost:5173", 
+                "https://sushi.jobjourney.me")
+            .AllowAnyMethod()
+            .AllowAnyHeader();
     });
     // Keep a general policy for other cases if needed, or remove if only one policy is used
     options.AddPolicy("AllowAll", corsBuilder =>
     {
         corsBuilder.AllowAnyOrigin()
-               .AllowAnyMethod()
-               .AllowAnyHeader();
+            .AllowAnyMethod()
+            .AllowAnyHeader();
     });
 });
 

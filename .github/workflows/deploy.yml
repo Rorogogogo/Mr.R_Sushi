@@ -6,8 +6,9 @@ on:
       - main
 
 jobs:
-  build:
+  build-frontend:
     runs-on: ubuntu-latest
+    name: Build Frontend
 
     steps:
       - name: Checkout code
@@ -17,9 +18,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Navigate to project directory
-        run: cd mr-r-sushi
 
       - name: Install dependencies
         working-directory: ./mr-r-sushi
@@ -42,55 +40,203 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-output
+          name: frontend-build
           path: mr-r-sushi/dist/
 
-  deploy:
-    needs: build
+  build-backend:
     runs-on: ubuntu-latest
+    name: Build Backend
 
     steps:
-      - name: Download build artifact
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        working-directory: ./Mr.R_Sushi/mr-r-sushi-api
+        run: dotnet restore
+
+      - name: Build backend
+        working-directory: ./Mr.R_Sushi/mr-r-sushi-api
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Publish API
+        working-directory: ./Mr.R_Sushi/mr-r-sushi-api
+        run: dotnet publish MrRSushiApi/MrRSushiApi.csproj -c Release -o ./publish
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-build
+          path: ./Mr.R_Sushi/mr-r-sushi-api/publish/
+
+  deploy:
+    needs: [build-frontend, build-backend]
+    runs-on: ubuntu-latest
+    name: Deploy to EC2
+
+    steps:
+      - name: Download frontend artifact
         uses: actions/download-artifact@v4
         with:
-          name: build-output
-          path: ./dist
+          name: frontend-build
+          path: ./frontend-dist
 
-      - name: Prepare directory on EC2
+      - name: Download backend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-build
+          path: ./backend-dist
+
+      - name: Create deployment scripts
+        run: |
+          # Create systemd service file for the backend API
+          cat > mrrsushi-api.service << 'EOF'
+          [Unit]
+          Description=Mr. R Sushi API Service
+          After=network.target
+
+          [Service]
+          WorkingDirectory=/var/www/api
+          ExecStart=/usr/bin/dotnet /var/www/api/MrRSushiApi.dll
+          Restart=always
+          RestartSec=10
+          SyslogIdentifier=mrrsushi-api
+          User=ec2-user
+          Environment=ASPNETCORE_ENVIRONMENT=Production
+          Environment=ASPNETCORE_URLS=http://localhost:5000
+
+          [Install]
+          WantedBy=multi-user.target
+          EOF
+
+          # Create Nginx config for routing
+          cat > nginx.conf << 'EOF'
+          server {
+              listen 80;
+              server_name sushi.jobjourney.me;
+              
+              # Redirect all HTTP to HTTPS
+              location / {
+                  return 301 https://$host$request_uri;
+              }
+          }
+
+          server {
+              listen 443 ssl;
+              server_name sushi.jobjourney.me;
+              
+              # SSL Certificate
+              ssl_certificate /etc/nginx/ssl/cert.pem;
+              ssl_certificate_key /etc/nginx/ssl/key.pem;
+              
+              # Basic SSL settings
+              ssl_protocols TLSv1.2 TLSv1.3;
+              
+              # Frontend files
+              root /var/www/html;
+              index index.html;
+              
+              # Handle frontend (SPA) routes
+              location / {
+                  try_files $uri $uri/ /index.html;
+              }
+              
+              # API routes - proxy to ASP.NET Core app
+              location /api/ {
+                  proxy_pass http://localhost:5000;
+                  proxy_http_version 1.1;
+                  proxy_set_header Upgrade $http_upgrade;
+                  proxy_set_header Connection keep-alive;
+                  proxy_set_header Host $host;
+                  proxy_cache_bypass $http_upgrade;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+              
+              # Cache static assets
+              location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+                  expires 30d;
+                  add_header Cache-Control "public, no-transform";
+              }
+          }
+          EOF
+
+      - name: Prepare directories on EC2
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            # Frontend directory
             sudo mkdir -p /var/www/html
             sudo rm -rf /var/www/html/*
-            sudo chown -R ec2-user:ec2-user /var/www/html
 
-      - name: Deploy files
+            # Backend directory
+            sudo mkdir -p /var/www/api
+            sudo rm -rf /var/www/api/*
+
+            # Set permissions
+            sudo chown -R ec2-user:ec2-user /var/www/html
+            sudo chown -R ec2-user:ec2-user /var/www/api
+
+      - name: Deploy frontend files
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: 'dist/**'
+          source: 'frontend-dist/**'
           target: '/var/www/html'
           strip_components: 1
           debug: true
 
-      - name: Set up Nginx with SSL
+      - name: Deploy backend files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: 'backend-dist/**'
+          target: '/var/www/api'
+          strip_components: 1
+          debug: true
+
+      - name: Deploy configuration files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: 'mrrsushi-api.service,nginx.conf'
+          target: '/home/ec2-user'
+          strip_components: 0
+          debug: true
+
+      - name: Configure services and Nginx
         uses: appleboy/ssh-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            # Install .NET Runtime if needed
+            if ! command -v dotnet &> /dev/null; then
+              sudo rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
+              sudo yum install -y aspnetcore-runtime-9.0
+            fi
+
             # Install Nginx if not already installed
             if ! command -v nginx &> /dev/null; then
               sudo amazon-linux-extras install nginx1 -y || sudo yum install nginx -y
             fi
 
-            # Create SSL directory
+            # Create SSL directory if it doesn't exist
             sudo mkdir -p /etc/nginx/ssl
             sudo chmod 700 /etc/nginx/ssl
 
@@ -103,70 +249,25 @@ jobs:
             echo "Checking SSL certificate validity..."
             sudo openssl x509 -in /etc/nginx/ssl/cert.pem -text -noout || echo "Certificate issue!"
 
-            # Configure Nginx with simplified SSL settings
-            sudo tee /etc/nginx/conf.d/default.conf > /dev/null << 'EOF'
-            server {
-                listen 80;
-                server_name _;
-                
-                # Redirect all HTTP to HTTPS
-                location / {
-                    root /var/www/html;
-                    index index.html;
-                    try_files $uri $uri/ /index.html;
-                }
-            }
+            # Configure Nginx with our config
+            sudo mv /home/ec2-user/nginx.conf /etc/nginx/conf.d/default.conf
 
-            server {
-                listen 443 ssl;
-                server_name _;
-                
-                # SSL Certificate
-                ssl_certificate /etc/nginx/ssl/cert.pem;
-                ssl_certificate_key /etc/nginx/ssl/key.pem;
-                
-                # Basic SSL settings
-                ssl_protocols TLSv1.2 TLSv1.3;
-                
-                # Root directory
-                root /var/www/html;
-                index index.html;
-                
-                # Handle Single Page Application routing
-                location / {
-                    try_files $uri $uri/ /index.html;
-                }
-                
-                # Cache static assets
-                location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-                    expires 30d;
-                    add_header Cache-Control "public, no-transform";
-                }
-            }
-            EOF
+            # Install the API systemd service
+            sudo mv /home/ec2-user/mrrsushi-api.service /etc/systemd/system/
 
-            # Check Nginx configuration
-            echo "Checking Nginx configuration..."
-            sudo nginx -t
+            # Reload systemd and enable the service
+            sudo systemctl daemon-reload
+            sudo systemctl enable mrrsushi-api.service
 
-            # Ensure ports are open for SELinux if applicable
-            if command -v setsebool &> /dev/null; then
-              sudo setsebool -P httpd_can_network_connect 1
-            fi
-
-            # Check if port 443 is listening
-            echo "Checking if port 443 is listening..."
-            sudo netstat -tulpn | grep :443 || echo "Port 443 is not listening!"
-
-            # Restart Nginx
+            # Start/restart the services
+            sudo systemctl restart mrrsushi-api.service
             sudo systemctl restart nginx
 
-            # Enable Nginx to start on boot
-            sudo systemctl enable nginx
+            # Check service status
+            echo "API service status:"
+            sudo systemctl status mrrsushi-api.service
 
-            # Check Nginx service status
             echo "Nginx service status:"
             sudo systemctl status nginx
 
-            # Remind user about security group
-            echo "Remember to ensure your EC2 security group allows traffic on port 443 (HTTPS)"
+            echo "Deployed successfully!"

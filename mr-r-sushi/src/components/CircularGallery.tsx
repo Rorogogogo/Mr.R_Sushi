@@ -13,6 +13,7 @@ import {
   ButtonGroup,
   Tooltip,
   Zoom,
+  CircularProgress,
 } from '@mui/material'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -24,8 +25,16 @@ import {
 import toast from 'react-hot-toast'
 import 'slick-carousel/slick/slick.css'
 import 'slick-carousel/slick/slick-theme.css'
-import { addToCart, updateCartItemQuantity } from '../services/cartService'
+import {
+  addToCart,
+  updateCartItemQuantity,
+  getAllCartItemsFromStorage,
+  removeCartItem as removeCartItemService,
+} from '../services/cartService'
+import { getAllMenuItems as fetchAllMenuItems } from '../services/menuService'
 import type { MenuItem } from '../types/menu'
+import CompanionSelectionDialog from './CompanionSelectionDialog'
+import { appEvents } from '../utils/appEvents'
 
 // Styled components
 const GalleryContainer = styled(Box)(({ theme }) => ({
@@ -218,89 +227,145 @@ const Circle = styled(motion.div)(({ theme }) => ({
   opacity: 0.1,
 }))
 
+// Define AddOnOption interface locally (ideally, this would be a shared type)
+interface AddOnOption {
+  id?: string | number
+  name: string
+  price: number
+}
+
 interface CartItemQuantity {
   cartItemId: number
   quantity: number
 }
 
-// Gallery items from the actual menu data
-const galleryItems = [
-  {
-    id: 1,
-    name: '招牌寿司',
-    description: 'Signature sushi with fresh ingredients and our special sauce',
-    price: '13元',
-    image: '/images/sushi-signature.jpg',
-    featured: true,
-    category: 'sushi',
-  },
-  {
-    id: 6,
-    name: '鱼子酱寿司',
-    description: 'Premium fish roe sushi with exquisite taste',
-    price: '16元',
-    image:
-      'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?q=80&w=300&auto=format&fit=crop',
-    featured: false,
-    category: 'sushi',
-  },
-  {
-    id: 9,
-    name: '金枪鱼鹌鹑蛋芝士寿司',
-    description: 'Tuna with quail egg and cheese sushi, premium taste',
-    price: '22元',
-    image:
-      'https://images.unsplash.com/photo-1579698501607-b34c7288541a?q=80&w=300&auto=format&fit=crop',
-    featured: false,
-    category: 'sushi',
-  },
-  {
-    id: 14,
-    name: '鱼子手卷',
-    description: 'Fish roe hand roll with premium roe',
-    price: '7元',
-    image:
-      'https://images.unsplash.com/photo-1540713304937-18ad930d3594?q=80&w=300&auto=format&fit=crop',
-    featured: false,
-    category: 'handroll',
-  },
-  {
-    id: 17,
-    name: '杂粮煎饼',
-    description: '单蛋 + 蔬菜 + 沙拉，健康美味',
-    price: '7元',
-    image:
-      'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=800&auto=format&fit=crop&q=60',
-    featured: true,
-    category: 'pancake',
-  },
-  {
-    id: 22,
-    name: '火焰芝士火鸡面煎饼',
-    description: '双蛋 + 芝士 + 蔬菜 + 火鸡面，豪华美味',
-    price: '22元',
-    image:
-      'https://images.unsplash.com/photo-1598215439219-738c1b65700a?w=800&auto=format&fit=crop&q=60',
-    featured: true,
-    category: 'pancake',
-  },
-]
+interface CartItemQuantityChangedPayload {
+  menuItemId: number
+  newQuantity: number
+  cartItemId: number
+}
+
+// Helper type guard for data with $values (if menu service response needs it)
+function isDataWithValues(
+  data: any
+): data is { $id: string; $values: MenuItem[] } {
+  return (
+    data &&
+    typeof data === 'object' &&
+    Array.isArray(data.$values) &&
+    '$values' in data
+  )
+}
 
 const CircularGallery = () => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [currentSlide, setCurrentSlide] = useState(0)
-  // State to track quantity for each item
   const [itemQuantities, setItemQuantities] = useState<
-    Record<number, CartItemQuantity>
+    Record<number, { cartItemId: number; quantity: number }>
   >({})
+  const [selectedPancake, setSelectedPancake] = useState<MenuItem | null>(null)
+  const [companionDialogOpen, setCompanionDialogOpen] = useState(false)
+
+  const [galleryItems, setGalleryItems] = useState<MenuItem[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchAndSetGalleryItems = async () => {
+      setIsLoading(true)
+      try {
+        const menuResponse = await fetchAllMenuItems()
+        let allItems: MenuItem[] = []
+        if (menuResponse.success) {
+          if (isDataWithValues(menuResponse.data)) {
+            allItems = menuResponse.data.$values
+          } else if (Array.isArray(menuResponse.data)) {
+            allItems = menuResponse.data
+          } else {
+            console.error('Unexpected menu data format:', menuResponse.data)
+          }
+        }
+
+        if (allItems.length > 0) {
+          const featuredItems = allItems.filter((item) => item.featured)
+          if (featuredItems.length > 0) {
+            setGalleryItems(featuredItems)
+          } else {
+            // Fallback: show the first 6 items if no featured items
+            setGalleryItems(allItems.slice(0, 6))
+          }
+        } else {
+          // Handle case where no items are fetched (e.g., show a default or empty state)
+          setGalleryItems([])
+        }
+      } catch (error) {
+        console.error('Error fetching menu items for gallery:', error)
+        toast.error('无法加载推荐商品')
+        setGalleryItems([]) // Set to empty on error
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchAndSetGalleryItems()
+  }, [])
+
+  // New useEffect to initialize itemQuantities from cartService
+  useEffect(() => {
+    if (galleryItems.length > 0) {
+      const persistedCartItems = getAllCartItemsFromStorage()
+      const initialQuantities: Record<
+        number,
+        { cartItemId: number; quantity: number }
+      > = {}
+      persistedCartItems.forEach((cartItem) => {
+        // Ensure the gallery item exists before setting quantity
+        const galleryItemExists = galleryItems.find(
+          (gi) => gi.id === cartItem.menuItemId
+        )
+        if (galleryItemExists) {
+          initialQuantities[cartItem.menuItemId] = {
+            cartItemId: cartItem.id, // This is the cart item's own ID
+            quantity: cartItem.quantity,
+          }
+        }
+      })
+      setItemQuantities(initialQuantities)
+    }
+  }, [galleryItems]) // Run when galleryItems are populated
+
+  // Effect to listen for external cart item quantity changes
+  useEffect(() => {
+    const handleExternalQuantityChange = (
+      data: CartItemQuantityChangedPayload
+    ) => {
+      if (data && typeof data.menuItemId === 'number') {
+        setItemQuantities((prevQuantities) => {
+          const newQuantities = { ...prevQuantities }
+          if (data.newQuantity > 0) {
+            newQuantities[data.menuItemId] = {
+              cartItemId: data.cartItemId,
+              quantity: data.newQuantity,
+            }
+          } else {
+            delete newQuantities[data.menuItemId]
+          }
+          return newQuantities
+        })
+      }
+    }
+
+    appEvents.on('cartItemQuantityChanged', handleExternalQuantityChange)
+    return () => {
+      appEvents.off('cartItemQuantityChanged', handleExternalQuantityChange)
+    }
+  }, []) // Runs once on mount
 
   const settings = {
     className: 'center',
     centerMode: true,
-    infinite: true,
+    infinite: galleryItems.length > (isMobile ? 1 : 3), // Ensure infinite scroll is only if enough items
     centerPadding: '60px',
-    slidesToShow: isMobile ? 1 : 3,
+    slidesToShow: isMobile ? 1 : Math.min(3, galleryItems.length || 1), // Adjust to number of items
     speed: 500,
     dots: true,
     arrows: !isMobile,
@@ -320,45 +385,38 @@ const CircularGallery = () => {
   }))
 
   const handleAddToCart = async (item: MenuItem) => {
+    // Check if the item is a pancake and needs companion selection
+    if (item.category === 'pancake' && item.name.includes('煎饼')) {
+      setSelectedPancake(item)
+      setCompanionDialogOpen(true)
+      return
+    }
+
+    const existingQuantityInfo = itemQuantities[item.id]
+    const currentQuantity = existingQuantityInfo?.quantity || 0
+    const newQuantity = currentQuantity + 1
+    let cartItemId = existingQuantityInfo?.cartItemId
+
+    setItemQuantities((prev) => ({
+      ...prev,
+      [item.id]: { cartItemId: cartItemId || item.id, quantity: newQuantity },
+    }))
+
     try {
-      // If item is already in cart, increase quantity by 1
-      if (itemQuantities[item.id]) {
-        await updateCartItemQuantity(
-          itemQuantities[item.id].cartItemId,
-          itemQuantities[item.id].quantity + 1
-        )
-
-        setItemQuantities({
-          ...itemQuantities,
-          [item.id]: {
-            ...itemQuantities[item.id],
-            quantity: itemQuantities[item.id].quantity + 1,
-          },
-        })
+      if (currentQuantity > 0 && cartItemId) {
+        await updateCartItemQuantity(cartItemId, newQuantity)
       } else {
-        // Add to cart with quantity 1
-        const result = await addToCart(
-          {
-            id: item.id,
-            name: item.name,
-            price: item.price,
-            image: item.image,
-            category: item.category,
-          },
-          1
-        )
-
-        // Store cart item ID and quantity
-        setItemQuantities({
-          ...itemQuantities,
-          [item.id]: {
-            cartItemId: result.id,
-            quantity: 1,
-          },
+        const result = await addToCart({ ...item }, 1)
+        if (result && result.id) cartItemId = result.id
+      }
+      if (cartItemId) {
+        appEvents.emit('cartItemQuantityChanged', {
+          menuItemId: item.id,
+          newQuantity,
+          cartItemId,
         })
       }
-
-      // Show success toast - updated message for reservation
+      appEvents.emit('cartUpdated')
       toast.success(`${item.name} 已预定`, {
         icon: '🍽️',
         style: {
@@ -372,45 +430,135 @@ const CircularGallery = () => {
       toast.error('预定失败', {
         icon: '❌',
       })
+      setItemQuantities((prev) => ({
+        ...prev,
+        [item.id]: {
+          cartItemId: cartItemId || item.id,
+          quantity: currentQuantity,
+        },
+      })) // Revert
+      appEvents.emit('cartUpdated')
+    }
+  }
+
+  // Handler for adding pancake with companions from the dialog
+  const handleAddPancakeWithCompanions = async (
+    addOnsReceived: AddOnOption[]
+  ) => {
+    if (!selectedPancake) return
+
+    const item = selectedPancake
+    const newQuantity = (itemQuantities[item.id]?.quantity || 0) + 1
+    let cartItemId = itemQuantities[item.id]?.cartItemId
+
+    setItemQuantities((prev) => ({
+      ...prev,
+      [item.id]: { cartItemId: cartItemId || item.id, quantity: newQuantity },
+    }))
+
+    try {
+      const result = await addToCart({ ...item }, 1, undefined, addOnsReceived)
+      if (result && result.id) cartItemId = result.id
+
+      if (cartItemId) {
+        appEvents.emit('cartItemQuantityChanged', {
+          menuItemId: item.id,
+          newQuantity,
+          cartItemId,
+        })
+      }
+      appEvents.emit('cartUpdated')
+      const addOnsText =
+        addOnsReceived.length > 0
+          ? ` (${addOnsReceived.map((ao) => ao.name).join(', ')})`
+          : ''
+      toast.success(`${item.name}${addOnsText} 已预定`, {
+        icon: '🥞',
+      })
+    } catch (error) {
+      console.error('Error adding pancake to cart:', error)
+      toast.error('预定失败', { icon: '❌' })
+      setItemQuantities((prev) => ({
+        ...prev,
+        [item.id]: {
+          cartItemId: cartItemId || item.id,
+          quantity: newQuantity - 1,
+        },
+      })) // Revert
+      appEvents.emit('cartUpdated')
+    } finally {
+      setCompanionDialogOpen(false)
+      setSelectedPancake(null)
     }
   }
 
   const handleRemoveFromCart = async (item: MenuItem) => {
-    if (!itemQuantities[item.id] || itemQuantities[item.id].quantity <= 0)
-      return
+    const existingQuantityInfo = itemQuantities[item.id]
+    if (!existingQuantityInfo || existingQuantityInfo.quantity <= 0) return
+
+    const originalQuantity = existingQuantityInfo.quantity
+    const cartItemId = existingQuantityInfo.cartItemId
+    const newQuantity = originalQuantity - 1
+
+    setItemQuantities((prev) => {
+      const newQtys = { ...prev }
+      if (newQuantity === 0) delete newQtys[item.id]
+      else newQtys[item.id] = { ...newQtys[item.id], quantity: newQuantity }
+      return newQtys
+    })
 
     try {
-      const newQuantity = itemQuantities[item.id].quantity - 1
-
       if (newQuantity === 0) {
-        // Remove item from cart
-        // You would call a removeFromCart service here
-
-        // Remove from our local state
-        const newQuantities = { ...itemQuantities }
-        delete newQuantities[item.id]
-        setItemQuantities(newQuantities)
+        await removeCartItemService(cartItemId) // Use the imported service
       } else {
-        // Update quantity
-        await updateCartItemQuantity(
-          itemQuantities[item.id].cartItemId,
-          newQuantity
-        )
-
-        setItemQuantities({
-          ...itemQuantities,
-          [item.id]: {
-            ...itemQuantities[item.id],
-            quantity: newQuantity,
-          },
-        })
+        await updateCartItemQuantity(cartItemId, newQuantity)
       }
+      appEvents.emit('cartItemQuantityChanged', {
+        menuItemId: item.id,
+        newQuantity,
+        cartItemId,
+      })
+      appEvents.emit('cartUpdated')
     } catch (error) {
       console.error('Error updating cart:', error)
       toast.error('更新购物车失败', {
         icon: '❌',
       })
+      setItemQuantities((prev) => ({
+        ...prev,
+        [item.id]: { cartItemId, quantity: originalQuantity },
+      })) // Revert
+      appEvents.emit('cartUpdated')
     }
+  }
+
+  if (isLoading) {
+    return (
+      <GalleryContainer id="home">
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+          }}>
+          <CircularProgress />
+          <Typography sx={{ ml: 2 }}>加载推荐中...</Typography>
+        </Box>
+      </GalleryContainer>
+    )
+  }
+
+  if (galleryItems.length === 0 && !isLoading) {
+    return (
+      <GalleryContainer id="home">
+        <Box sx={{ textAlign: 'center', p: 4 }}>
+          <Typography variant="h5" color="textSecondary">
+            暂无推荐商品
+          </Typography>
+        </Box>
+      </GalleryContainer>
+    )
   }
 
   return (
@@ -485,21 +633,29 @@ const CircularGallery = () => {
                   <ItemCard elevation={6}>
                     <CardImageContainer>
                       <PriceTag>{item.price}</PriceTag>
-                      <CategoryTag category={item.category}>
+                      <CategoryTag category={item.category || 'sushi'}>
                         {item.category === 'sushi'
                           ? '寿司'
                           : item.category === 'handroll'
                           ? '手卷'
-                          : '煎饼'}
+                          : item.category === 'pancake'
+                          ? '煎饼'
+                          : '美食'}
                       </CategoryTag>
                       <CardImage
-                        src={item.image}
+                        src={
+                          item.image
+                            ? item.image.startsWith('http') ||
+                              item.image.startsWith('/')
+                              ? item.image
+                              : `/images/product_img/${item.image}`
+                            : '/images/product_img/default.png'
+                        }
                         alt={item.name}
                         onError={(e) => {
                           const imgElement = e.target as HTMLImageElement
                           imgElement.onerror = null
-                          imgElement.src =
-                            'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?q=80&w=300&auto=format&fit=crop'
+                          imgElement.src = '/images/product_img/1.png'
                         }}
                       />
                     </CardImageContainer>
@@ -621,6 +777,13 @@ const CircularGallery = () => {
           </Box>
         </Box>
       </Container>
+      {/* Companion Selection Dialog for Pancakes */}
+      <CompanionSelectionDialog
+        open={companionDialogOpen}
+        onClose={() => setCompanionDialogOpen(false)}
+        onAddToCart={handleAddPancakeWithCompanions}
+        menuItem={selectedPancake}
+      />
     </GalleryContainer>
   )
 }

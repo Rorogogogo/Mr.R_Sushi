@@ -154,3 +154,4 @@
 /Users/roro/Downloads/work/Mr.R_Sushi/Mr.R_Sushi/mr-r-sushi-api/MrRSushiApi/obj/Debug/net9.0/MrRSushiApi.pdb
 /Users/roro/Downloads/work/Mr.R_Sushi/Mr.R_Sushi/mr-r-sushi-api/MrRSushiApi/obj/Debug/net9.0/MrRSushiApi.genruntimeconfig.cache
 /Users/roro/Downloads/work/Mr.R_Sushi/Mr.R_Sushi/mr-r-sushi-api/MrRSushiApi/obj/Debug/net9.0/ref/MrRSushiApi.dll
+/Users/roro/Downloads/work/Mr.R_Sushi/Mr.R_Sushi/mr-r-sushi-api/MrRSushiApi/bin/Debug/net9.0/appsettings.Production.json

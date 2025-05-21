@@ -44,7 +44,7 @@ public class ApplicationDbContext : DbContext
                 Name = "招牌寿司",
                 Price = "13元",
                 Category = "sushi",
-                Description = "Signature sushi with fresh ingredients and our special sauce",
+                Description = "使用新鲜食材和特制酱料制作的招牌寿司",
                 Featured = true,
                 Image = "/images/sushi-signature.jpg"
             },
@@ -54,7 +54,7 @@ public class ApplicationDbContext : DbContext
                 Name = "鸭蛋黄寿司",
                 Price = "15元",
                 Category = "sushi",
-                Description = "Duck egg yolk sushi with rich flavor profile",
+                Description = "鸭蛋黄寿司，口感浓郁醇厚",
                 Image = "/images/sushi-duck.jpg"
             },
             new MenuItem
@@ -63,7 +63,7 @@ public class ApplicationDbContext : DbContext
                 Name = "培根寿司",
                 Price = "15元",
                 Category = "sushi",
-                Description = "Crispy bacon sushi fusion dish"
+                Description = "香脆培根寿司融合料理"
             },
             new MenuItem
             {
@@ -71,7 +71,7 @@ public class ApplicationDbContext : DbContext
                 Name = "樱花寿司",
                 Price = "15元",
                 Category = "sushi",
-                Description = "Cherry blossom inspired sushi with seasonal flavors",
+                Description = "灵感来自樱花的时令风味寿司",
                 Featured = true,
                 Image = "https://images.unsplash.com/photo-1556906782-5e232862b21e?q=80&w=300&auto=format&fit=crop"
             },
@@ -81,7 +81,7 @@ public class ApplicationDbContext : DbContext
                 Name = "芝士寿司",
                 Price = "16元",
                 Category = "sushi",
-                Description = "Cheese sushi with a perfect blend of flavors"
+                Description = "芝士寿司，完美融合各种风味"
             },
             new MenuItem
             {
@@ -89,7 +89,7 @@ public class ApplicationDbContext : DbContext
                 Name = "鱼子酱寿司",
                 Price = "16元",
                 Category = "sushi",
-                Description = "Premium fish roe sushi with exquisite taste"
+                Description = "优质鱼子酱寿司，口感精致"
             },
             new MenuItem
             {
@@ -97,7 +97,7 @@ public class ApplicationDbContext : DbContext
                 Name = "金枪鱼寿司",
                 Price = "18元",
                 Category = "sushi",
-                Description = "Fresh tuna sushi, a classic favorite",
+                Description = "新鲜金枪鱼寿司，经典之选",
                 Featured = true,
                 Image = "https://images.unsplash.com/photo-1558985250-27a406d64cb3?q=80&w=300&auto=format&fit=crop"
             },
@@ -107,7 +107,7 @@ public class ApplicationDbContext : DbContext
                 Name = "金枪鱼鱼子酱寿司",
                 Price = "20元",
                 Category = "sushi",
-                Description = "Tuna with fish roe sushi, rich in flavor"
+                Description = "金枪鱼搭配鱼子酱寿司，风味丰富"
             },
             new MenuItem
             {
@@ -115,7 +115,7 @@ public class ApplicationDbContext : DbContext
                 Name = "金枪鱼鹌鹑蛋芝士寿司",
                 Price = "22元",
                 Category = "sushi",
-                Description = "Tuna with quail egg and cheese sushi, premium taste"
+                Description = "金枪鱼搭配鹌鹑蛋和芝士寿司，高级口感"
             },
             new MenuItem
             {
@@ -123,7 +123,7 @@ public class ApplicationDbContext : DbContext
                 Name = "金枪鱼鹌鹑蛋芝士+鸭蛋黄寿司",
                 Price = "24元",
                 Category = "sushi",
-                Description = "Tuna with quail egg, cheese and duck egg yolk sushi"
+                Description = "金枪鱼搭配鹌鹑蛋、芝士和鸭蛋黄寿司"
             },
             new MenuItem
             {
@@ -131,7 +131,7 @@ public class ApplicationDbContext : DbContext
                 Name = "金枪鱼鹌鹑蛋芝士+鸭蛋黄+培根寿司",
                 Price = "26元",
                 Category = "sushi",
-                Description = "Our ultimate tuna combination sushi with all premium toppings",
+                Description = "我们终极金枪鱼组合寿司，搭配全部高级配料",
                 Featured = true,
                 Image = "https://images.unsplash.com/photo-1562802378-063ec186a863?q=80&w=300&auto=format&fit=crop"
             },
@@ -143,7 +143,7 @@ public class ApplicationDbContext : DbContext
                 Name = "肉松手卷",
                 Price = "7元",
                 Category = "handroll",
-                Description = "Meat floss hand roll with savory flavor",
+                Description = "肉松手卷，口感鲜美可口",
                 Featured = true,
                 Image = "https://images.unsplash.com/photo-1553621042-f6e147245754?q=80&w=300&auto=format&fit=crop"
             },
@@ -153,7 +153,7 @@ public class ApplicationDbContext : DbContext
                 Name = "火腿手卷",
                 Price = "7元",
                 Category = "handroll",
-                Description = "Ham hand roll, a perfect quick bite"
+                Description = "火腿手卷，完美的快捷小食"
             },
             new MenuItem
             {
@@ -161,7 +161,7 @@ public class ApplicationDbContext : DbContext
                 Name = "鱼子手卷",
                 Price = "7元",
                 Category = "handroll",
-                Description = "Fish roe hand roll with premium roe"
+                Description = "鱼子手卷，使用优质鱼子"
             },
             new MenuItem
             {
@@ -169,7 +169,7 @@ public class ApplicationDbContext : DbContext
                 Name = "蟹棒手卷",
                 Price = "7元",
                 Category = "handroll",
-                Description = "Crab stick hand roll, a classic choice",
+                Description = "蟹棒手卷，经典之选",
                 Featured = true,
                 Image = "https://images.unsplash.com/photo-1540713304937-18ad930d3594?q=80&w=300&auto=format&fit=crop"
             },
@@ -179,7 +179,7 @@ public class ApplicationDbContext : DbContext
                 Name = "芝士手卷",
                 Price = "7元",
                 Category = "handroll",
-                Description = "Cheese hand roll with a creamy texture"
+                Description = "芝士手卷，口感细腻奶香浓郁"
             },
             
             // Pancake items

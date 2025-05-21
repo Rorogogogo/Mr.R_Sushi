@@ -5,7 +5,6 @@ import {
   Typography,
   Button,
   IconButton,
-  Badge,
   Drawer,
   List,
   ListItem,
@@ -24,15 +23,13 @@ import {
 } from '@mui/material'
 import {
   Menu as MenuIcon,
-  ShoppingCart as ShoppingCartIcon,
   Home as HomeIcon,
   Restaurant as RestaurantIcon,
   Info as InfoIcon,
   Phone as PhoneIcon,
-  EventNote as EventIcon,
   Close as CloseIcon,
 } from '@mui/icons-material'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import Cart from './Cart'
 import { getCartItems } from '../services/cartService'
 
@@ -74,6 +71,11 @@ const LogoContainer = styled(motion.div)({
   alignItems: 'center',
 })
 
+const EmojiSpan = styled(motion.span)({
+  marginLeft: '8px',
+  display: 'inline-block',
+})
+
 // Scroll effect function
 function HideOnScroll(props: { children: React.ReactElement }) {
   const { children } = props
@@ -97,8 +99,6 @@ const Header = ({ setCartOpen }: HeaderProps) => {
   const [scrolled, setScrolled] = useState(false)
   const [activeSection, setActiveSection] = useState('home')
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const [cartItemCount, setCartItemCount] = useState(0)
-  const [cartBounce, setCartBounce] = useState(false)
 
   // Navigation items configuration
   const navItems = [
@@ -130,35 +130,6 @@ const Header = ({ setCartOpen }: HeaderProps) => {
     window.addEventListener('scroll', handleScroll)
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
-
-  // Fetch cart items count periodically
-  useEffect(() => {
-    const fetchCartCount = async () => {
-      try {
-        const items = await getCartItems()
-        const newCount = items.reduce(
-          (total: number, item: CartItem) => total + item.quantity,
-          0
-        )
-
-        // Only trigger animation if count increases
-        if (newCount > cartItemCount) {
-          setCartBounce(true)
-          setTimeout(() => setCartBounce(false), 300)
-        }
-
-        setCartItemCount(newCount)
-      } catch (err) {
-        console.error('Error fetching cart count:', err)
-      }
-    }
-
-    fetchCartCount()
-
-    // Update cart count every 30 seconds
-    const interval = setInterval(fetchCartCount, 30000)
-    return () => clearInterval(interval)
-  }, [cartItemCount])
 
   // Handle navigation click
   const handleNavClick = (section: string) => {
@@ -206,6 +177,7 @@ const Header = ({ setCartOpen }: HeaderProps) => {
             borderColor: 'divider',
             color: 'text.primary',
             py: scrolled ? 0 : 0.5,
+            height: 'auto', // Reduced height
           }}>
           {/* Decorative top border */}
           <Box
@@ -220,7 +192,13 @@ const Header = ({ setCartOpen }: HeaderProps) => {
           />
 
           <Container maxWidth="lg">
-            <Toolbar disableGutters sx={{ justifyContent: 'space-between' }}>
+            <Toolbar
+              disableGutters
+              sx={{
+                justifyContent: 'space-between',
+                minHeight: { xs: '56px', sm: '64px' }, // Reduced toolbar height
+                py: 0.5,
+              }}>
               {/* Logo */}
               <LogoContainer
                 initial={{ opacity: 0, x: -20 }}
@@ -238,18 +216,11 @@ const Header = ({ setCartOpen }: HeaderProps) => {
                   }}>
                   <BrandTypography variant={scrolled ? 'h6' : 'h5'}>
                     Mr. R 寿司
-                    <motion.span
-                      style={{
-                        marginLeft: '8px',
-                        display: 'inline-block',
-                        fontSize: scrolled ? '1.2rem' : '1.5rem',
-                        color: 'inherit',
-                      }}
-                      animate={cartBounce ? { y: [0, -5, 0] } : {}}
-                      transition={{ duration: 0.3 }}>
-                      🍣
-                    </motion.span>
                   </BrandTypography>
+                  <EmojiSpan
+                    style={{ fontSize: scrolled ? '1.2rem' : '1.5rem' }}>
+                    🍣
+                  </EmojiSpan>
                 </Button>
               </LogoContainer>
 
@@ -260,33 +231,11 @@ const Header = ({ setCartOpen }: HeaderProps) => {
                   alignItems: 'center',
                 }}>
                 <IconButton
-                  color="inherit"
-                  aria-label="cart"
-                  onClick={handleOpenCart}
-                  sx={{ mr: 1 }}>
-                  <Badge
-                    badgeContent={cartItemCount}
-                    color="primary"
-                    sx={{
-                      '& .MuiBadge-badge': {
-                        animation: cartBounce ? 'bounce 0.3s ease' : 'none',
-                        '@keyframes bounce': {
-                          '0%, 100%': { transform: 'scale(1)' },
-                          '50%': { transform: 'scale(1.3)' },
-                        },
-                      },
-                    }}>
-                    <ShoppingCartIcon />
-                  </Badge>
-                </IconButton>
-
-                <IconButton
                   edge="end"
                   color="inherit"
                   aria-label="menu"
                   onClick={() => setIsMenuOpen(true)}
                   sx={{
-                    ml: 1,
                     bgcolor: isMenuOpen ? 'rgba(0,0,0,0.05)' : 'transparent',
                     '&:hover': { bgcolor: 'rgba(0,0,0,0.1)' },
                   }}>
@@ -302,7 +251,6 @@ const Header = ({ setCartOpen }: HeaderProps) => {
                 }}>
                 <Tabs
                   value={activeSection}
-                  sx={{ mr: 2 }}
                   TabIndicatorProps={{
                     style: {
                       backgroundColor: theme.palette.primary.main,
@@ -335,27 +283,6 @@ const Header = ({ setCartOpen }: HeaderProps) => {
                     />
                   ))}
                 </Tabs>
-
-                <IconButton
-                  color="inherit"
-                  aria-label="cart"
-                  onClick={handleOpenCart}
-                  sx={{ mr: 2 }}>
-                  <Badge
-                    badgeContent={cartItemCount}
-                    color="primary"
-                    sx={{
-                      '& .MuiBadge-badge': {
-                        animation: cartBounce ? 'bounce 0.3s ease' : 'none',
-                        '@keyframes bounce': {
-                          '0%, 100%': { transform: 'scale(1)' },
-                          '50%': { transform: 'scale(1.3)' },
-                        },
-                      },
-                    }}>
-                    <ShoppingCartIcon />
-                  </Badge>
-                </IconButton>
               </Box>
             </Toolbar>
           </Container>
@@ -430,7 +357,6 @@ const Header = ({ setCartOpen }: HeaderProps) => {
             variant="contained"
             color="primary"
             fullWidth
-            startIcon={<ShoppingCartIcon />}
             onClick={() => {
               handleOpenCart()
               setIsMenuOpen(false)

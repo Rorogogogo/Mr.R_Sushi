@@ -10,6 +10,26 @@ import {
   useMediaQuery,
 } from '@mui/material'
 import { ShoppingCart as ShoppingCartIcon } from '@mui/icons-material'
+import { appEvents } from '../utils/appEvents'
+
+// Placeholder for appEvents if not implemented, replace with actual import
+// const appEvents = {
+//   on: (event: string, callback: () => void) => {
+//     console.warn(
+//       'appEvents.on called for',
+//       event,
+//       'but emitter might not be fully implemented.'
+//     )
+//   },
+//   off: (event: string, callback: () => void) => {
+//     console.warn(
+//       'appEvents.off called for',
+//       event,
+//       'but emitter might not be fully implemented.'
+//     )
+//   },
+//   // emit is not needed in this component
+// }
 
 type FloatingCartProps = {
   onClick: () => void
@@ -40,7 +60,7 @@ const FloatingCart: React.FC<FloatingCartProps> = ({ onClick }) => {
   const [cartItemCount, setCartItemCount] = useState(0)
   const [bounce, setBounce] = useState(false)
 
-  // Fetch cart items count periodically
+  // Fetch cart items count
   useEffect(() => {
     const fetchCartCount = async () => {
       try {
@@ -50,24 +70,28 @@ const FloatingCart: React.FC<FloatingCartProps> = ({ onClick }) => {
           0
         )
 
-        // Only trigger animation if count increases
-        if (newCount > cartItemCount) {
-          setBounce(true)
-          setTimeout(() => setBounce(false), 300)
-        }
-
-        setCartItemCount(newCount)
+        setCartItemCount((prevCount) => {
+          if (newCount > prevCount) {
+            setBounce(true)
+            setTimeout(() => setBounce(false), 300) // Bounce animation
+          }
+          return newCount
+        })
       } catch (err) {
         console.error('Error fetching cart count:', err)
       }
     }
 
-    fetchCartCount()
+    fetchCartCount() // Initial fetch
 
-    // Update cart count every 30 seconds
-    const interval = setInterval(fetchCartCount, 30000)
-    return () => clearInterval(interval)
-  }, [cartItemCount])
+    // Subscribe to cart update events
+    appEvents.on('cartUpdated', fetchCartCount)
+
+    // Cleanup subscription on component unmount
+    return () => {
+      appEvents.off('cartUpdated', fetchCartCount)
+    }
+  }, []) // Empty dependency array means this effect runs once on mount and cleans up on unmount
 
   // Only show on mobile
   if (!isMobile) return null

@@ -13,11 +13,13 @@ const About = () => {
             <div className="relative">
               <div className="absolute -top-4 -left-4 w-24 h-24 bg-sushi-red rounded-full opacity-20"></div>
               <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-sushi-gold rounded-full opacity-20"></div>
-              <div className="bg-gray-200 rounded-lg h-80 md:h-96 overflow-hidden relative z-10">
+              <div className="rounded-lg h-80 md:h-96 overflow-hidden relative z-10 flex items-center justify-center">
                 {/* This would be an actual image in production */}
-                <div className="absolute inset-0 flex items-center justify-center text-gray-500 font-display text-2xl">
-                  餐厅图片
-                </div>
+                <img
+                  src="/images/Logo.png"
+                  alt="Mr.R Sushi Restaurant"
+                  className="max-h-full max-w-full object-contain"
+                />
               </div>
             </div>
           </motion.div>

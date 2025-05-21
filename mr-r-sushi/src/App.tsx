@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { Toaster } from 'react-hot-toast'
 import theme from './theme/theme'
-import Header from './components/Header'
 import CircularGallery from './components/CircularGallery'
+import MenuScrollBanner from './components/MenuScrollBanner'
 import Menu from './components/Menu'
 import About from './components/About'
 import Contact from './components/Contact'
@@ -12,6 +12,22 @@ import FloatingCart from './components/FloatingCart'
 import Cart from './components/Cart'
 import './App.css'
 
+// Preload SVG files for ScrollVelocity component
+const preloadSvgs = () => {
+  const svgFiles = [
+    '/svgsforScrollVelocity/寿司.svg',
+    '/svgsforScrollVelocity/寿司 (1).svg',
+    '/svgsforScrollVelocity/寿司-20.svg',
+    '/svgsforScrollVelocity/寿司-35.svg',
+    '/svgsforScrollVelocity/寿司 (2).svg',
+  ]
+
+  svgFiles.forEach((svg) => {
+    const img = new Image()
+    img.src = svg
+  })
+}
+
 function App() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
@@ -19,6 +35,9 @@ function App() {
   // Add class to body to ensure content is visible under fixed header
   useEffect(() => {
     document.body.classList.add('has-fixed-header')
+
+    // Preload SVG files
+    preloadSvgs()
 
     // Mark app as loaded after a short delay
     const timer = setTimeout(() => {
@@ -44,7 +63,7 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Toaster
-        position="bottom-right"
+        position="top-right"
         toastOptions={{
           style: {
             background: '#fff',
@@ -69,18 +88,15 @@ function App() {
       />
       <div
         className={`app-container ${isLoaded ? 'app-loaded' : 'app-loading'}`}>
-        <Header setCartOpen={setIsCartOpen} />
-        <main className="pt-16">
-          {' '}
-          {/* Add padding top to account for fixed header */}
+        <main>
           <CircularGallery />
+          <MenuScrollBanner />
           <Menu />
           <About />
           <Contact />
         </main>
         <Footer />
 
-        {/* Cart components */}
         <FloatingCart onClick={() => setIsCartOpen(true)} />
         <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       </div>

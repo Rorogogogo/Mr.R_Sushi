@@ -22,23 +22,13 @@ body {
   background-color: #ffffff;
 }
 
-/* Fixed header adjustments */
-body.has-fixed-header {
-  padding-top: 0; /* Remove any default padding */
-}
-
 /* Custom styling for smoother scrolling */
 html {
   scroll-behavior: smooth;
-  scroll-padding-top: 80px; /* Account for fixed header */
 }
 
 /* Mobile-specific optimizations */
 @media (max-width: 768px) {
-  html {
-    scroll-padding-top: 60px;
-  }
-
   .mobile-nav-active {
     overflow: hidden;
   }
