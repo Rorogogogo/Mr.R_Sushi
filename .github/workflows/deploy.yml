@@ -57,22 +57,19 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: Restore dependencies
-        working-directory: ./Mr.R_Sushi/mr-r-sushi-api
-        run: dotnet restore
+        run: dotnet restore Mr.R_Sushi.sln
 
       - name: Build backend
-        working-directory: ./Mr.R_Sushi/mr-r-sushi-api
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build Mr.R_Sushi.sln --configuration Release --no-restore
 
       - name: Publish API
-        working-directory: ./Mr.R_Sushi/mr-r-sushi-api
-        run: dotnet publish MrRSushiApi/MrRSushiApi.csproj -c Release -o ./publish
+        run: dotnet publish Mr.R_Sushi/mr-r-sushi-api/MrRSushiApi/MrRSushiApi.csproj -c Release -o ./publish
 
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
           name: backend-build
-          path: ./Mr.R_Sushi/mr-r-sushi-api/publish/
+          path: ./publish/
 
   deploy:
     needs: [build-frontend, build-backend]
