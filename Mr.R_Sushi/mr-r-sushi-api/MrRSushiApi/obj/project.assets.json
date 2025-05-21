@@ -3186,7 +3186,6 @@
       "packagesPath": "/Users/roro/.nuget/packages/",
       "outputPath": "/Users/roro/Downloads/work/Mr.R_Sushi/Mr.R_Sushi/mr-r-sushi-api/MrRSushiApi/obj/",
       "projectStyle": "PackageReference",
-      "UsingMicrosoftNETSdk": false,
       "configFilePaths": [
         "/Users/roro/.nuget/NuGet/NuGet.Config"
       ],
@@ -3211,7 +3210,8 @@
         "enableAudit": "true",
         "auditLevel": "low",
         "auditMode": "direct"
-      }
+      },
+      "SdkAnalysisLevel": "9.0.100"
     },
     "frameworks": {
       "net9.0": {

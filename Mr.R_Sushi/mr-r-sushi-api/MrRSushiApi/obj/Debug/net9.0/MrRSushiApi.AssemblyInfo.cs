@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("MrRSushiApi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+108f6d2db05197ffb0cc5dfdd7e8039c3157e7b2")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+dacf3c7fa04e3fc438b59b0f6af6d94872a872e1")]
 [assembly: System.Reflection.AssemblyProductAttribute("MrRSushiApi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("MrRSushiApi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
