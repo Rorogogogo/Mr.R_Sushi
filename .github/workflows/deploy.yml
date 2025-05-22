@@ -99,7 +99,7 @@ jobs:
 
           [Service]
           WorkingDirectory=/var/www/api
-          ExecStart=/usr/bin/dotnet /var/www/api/MrRSushiApi.dll
+          ExecStart=/home/ec2-user/dotnet/dotnet /var/www/api/MrRSushiApi.dll
           Restart=always
           RestartSec=10
           SyslogIdentifier=mrrsushi-api
@@ -222,10 +222,22 @@ jobs:
           username: ec2-user
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            # Install .NET Runtime if needed
+            # Verify dotnet is installed
             if ! command -v dotnet &> /dev/null; then
-              sudo rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
-              sudo yum install -y aspnetcore-runtime-9.0
+              # Check if dotnet is in the home directory
+              if [ -f "/home/ec2-user/dotnet/dotnet" ]; then
+                echo "Found dotnet in home directory"
+              else
+                echo "Installing .NET runtime..."
+                # Setup Microsoft package repository
+                sudo rpm -Uvh https://packages.microsoft.com/config/centos/7/packages-microsoft-prod.rpm
+                
+                # Update package lists
+                sudo yum update -y
+                
+                # Install .NET runtime
+                sudo yum install -y aspnetcore-runtime-9.0
+              fi
             fi
 
             # Install Nginx if not already installed
@@ -266,5 +278,21 @@ jobs:
 
             echo "Nginx service status:"
             sudo systemctl status nginx
+
+            # Add debugging information
+            echo "Checking if API is listening on port 5000:"
+            sudo netstat -tulpn | grep 5000 || echo "API not listening on port 5000!"
+
+            echo "Checking API logs:"
+            sudo journalctl -u mrrsushi-api.service --no-pager -n 50
+
+            echo "Checking Nginx error logs:"
+            sudo tail -n 50 /var/log/nginx/error.log
+
+            echo "Checking permissions on API files:"
+            ls -la /var/www/api/
+
+            echo "Checking environment variables:"
+            printenv | grep ASPNET
 
             echo "Deployed successfully!"
