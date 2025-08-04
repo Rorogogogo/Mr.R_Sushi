@@ -9,7 +9,7 @@ import About from './components/About'
 import Contact from './components/Contact'
 import Footer from './components/Footer'
 import FloatingCart from './components/FloatingCart'
-import Cart from './components/Cart'
+import ModernCart from './components/ModernCart'
 import { useScrollPerformance } from './hooks/useScrollPerformance'
 import './App.css'
 
@@ -35,6 +35,16 @@ function App() {
 
   // Use scroll performance optimization
   useScrollPerformance()
+
+  // Handle cart opening from navigation
+  useEffect(() => {
+    const handleOpenCart = () => {
+      setIsCartOpen(true)
+    }
+    
+    window.addEventListener('openCart', handleOpenCart)
+    return () => window.removeEventListener('openCart', handleOpenCart)
+  }, [])
 
   // Add class to body to ensure content is visible under fixed header
   useEffect(() => {
@@ -102,7 +112,7 @@ function App() {
         <Footer />
 
         <FloatingCart onClick={() => setIsCartOpen(true)} />
-        <Cart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+        <ModernCart isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
       </div>
     </ThemeProvider>
   )

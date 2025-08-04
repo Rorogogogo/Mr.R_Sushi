@@ -55,6 +55,21 @@ const ModernHero = () => {
             <a href="#contact" className="glass-card px-6 py-3 rounded-2xl text-modern-light text-sm font-medium tracking-wide uppercase hover:bg-modern-light/10 transition-colors">
               Book a Table
             </a>
+            
+            {/* Cart Icon for Desktop */}
+            <button 
+              onClick={() => {
+                // This will be handled by the App component's cart state
+                const cartEvent = new CustomEvent('openCart');
+                window.dispatchEvent(cartEvent);
+              }}
+              className="glass-card p-3 rounded-2xl text-modern-light hover:bg-modern-light/10 transition-colors relative"
+              aria-label="Shopping Cart"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-2.5 5M7 13l2.5 5m6-5v6a2 2 0 11-4 0v-6m4 0V7a2 2 0 10-4 0v6" />
+              </svg>
+            </button>
           </div>
         </div>
       </motion.nav>

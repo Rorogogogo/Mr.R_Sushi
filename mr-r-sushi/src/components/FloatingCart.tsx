@@ -41,12 +41,19 @@ const StyledFab = styled(Fab)(({ theme }) => ({
   bottom: 24,
   right: 24,
   zIndex: 30,
-  boxShadow: theme.shadows[4],
+  backgroundColor: '#1A1A1A',
+  color: '#F8F8F6',
+  boxShadow: '0 8px 32px rgba(10, 10, 10, 0.3)',
+  backdropFilter: 'blur(10px)',
+  border: '1px solid rgba(248, 248, 246, 0.1)',
   '&:hover': {
-    boxShadow: theme.shadows[8],
-    transform: 'translateY(-3px)',
+    backgroundColor: '#2A2A2A',
+    boxShadow: '0 12px 40px rgba(10, 10, 10, 0.4)',
+    transform: 'translateY(-3px) scale(1.05)',
   },
-  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+  transition: 'all 0.3s ease',
+  width: 64,
+  height: 64,
 }))
 
 // Animation variants for framer-motion
@@ -93,8 +100,8 @@ const FloatingCart: React.FC<FloatingCartProps> = ({ onClick }) => {
     }
   }, []) // Empty dependency array means this effect runs once on mount and cleans up on unmount
 
-  // Only show on mobile
-  if (!isMobile) return null
+  // Show on all devices now
+  // if (!isMobile) return null
 
   return (
     <Zoom in={true} style={{ transitionDelay: '500ms' }}>
@@ -108,12 +115,16 @@ const FloatingCart: React.FC<FloatingCartProps> = ({ onClick }) => {
           transition={{ duration: 0.3 }}>
           <Badge
             badgeContent={cartItemCount}
-            color="error"
             overlap="circular"
             sx={{
               '& .MuiBadge-badge': {
+                backgroundColor: '#C9A961',
+                color: '#0A0A0A',
                 fontWeight: 'bold',
                 fontSize: '0.75rem',
+                minWidth: '20px',
+                height: '20px',
+                borderRadius: '10px',
               },
             }}>
             <ShoppingCartIcon />
