@@ -7,12 +7,27 @@ export default {
   theme: {
     extend: {
       colors: {
-        'sushi-red': '#8B0000',
-        'sushi-gold': '#D4AF37',
-        'sushi-black': '#121212',
-        'sushi-light': '#F5F5F5',
-        'sushi-accent': '#E83A14',
-        'sushi-neutral': '#2D2D2D',
+        // Modern neutral palette inspired by Qitchen
+        'modern-black': '#0A0A0A',
+        'modern-dark': '#1A1A1A', 
+        'modern-gray': '#2A2A2A',
+        'modern-light': '#F8F8F6',
+        'modern-cream': '#F5F2E9',
+        'modern-beige': '#E8E4D9',
+        
+        // Accent colors
+        'accent-warm': '#D4A574',
+        'accent-gold': '#C9A961',
+        'accent-green': '#8B9A47',
+        'accent-red': '#B85C38',
+        
+        // Legacy colors for backward compatibility
+        'sushi-red': '#B85C38',
+        'sushi-gold': '#C9A961',
+        'sushi-black': '#0A0A0A',
+        'sushi-light': '#F8F8F6',
+        'sushi-accent': '#D4A574',
+        'sushi-neutral': '#2A2A2A',
         // Kawaii theme colors
         'sushi-pink': {
           100: '#FFF5F7',
@@ -52,9 +67,9 @@ export default {
         },
       },
       fontFamily: {
-        'sans': ['"Be Vietnam Pro"', 'Poppins', 'sans-serif'],
-        'display': ['"Noto Serif JP"', 'Playfair Display', 'serif'],
-        'accent': ['Montserrat', 'sans-serif'],
+        'sans': ['Inter', '"Be Vietnam Pro"', 'system-ui', 'sans-serif'],
+        'display': ['Forum', '"Noto Serif JP"', 'serif'],
+        'accent': ['Inter', 'Montserrat', 'sans-serif'],
         'kawaii': ['"Comic Sans MS"', '"Segoe UI"', 'sans-serif'],
       },
       animation: {

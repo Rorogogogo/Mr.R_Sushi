@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { Toaster } from 'react-hot-toast'
 import theme from './theme/theme'
-import CircularGallery from './components/CircularGallery'
+import ModernHero from './components/ModernHero'
 import MenuScrollBanner from './components/MenuScrollBanner'
-import Menu from './components/Menu'
+import ModernMenu from './components/ModernMenu'
 import About from './components/About'
 import Contact from './components/Contact'
 import Footer from './components/Footer'
 import FloatingCart from './components/FloatingCart'
 import Cart from './components/Cart'
+import { useScrollPerformance } from './hooks/useScrollPerformance'
 import './App.css'
 
 // Preload SVG files for ScrollVelocity component
@@ -31,6 +32,9 @@ const preloadSvgs = () => {
 function App() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
+
+  // Use scroll performance optimization
+  useScrollPerformance()
 
   // Add class to body to ensure content is visible under fixed header
   useEffect(() => {
@@ -89,9 +93,9 @@ function App() {
       <div
         className={`app-container ${isLoaded ? 'app-loaded' : 'app-loading'}`}>
         <main>
-          <CircularGallery />
+          <ModernHero />
           <MenuScrollBanner />
-          <Menu />
+          <ModernMenu />
           <About />
           <Contact />
         </main>

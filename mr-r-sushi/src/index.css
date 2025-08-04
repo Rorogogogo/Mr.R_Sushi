@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Noto+Serif+JP:wght@400;500;600;700&family=Poppins:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Forum:wght@400&family=Be+Vietnam+Pro:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700&family=Noto+Serif+JP:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -13,57 +13,115 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Performance optimizations for smooth scrolling */
+* {
+  box-sizing: border-box;
+}
+
+/* Optimize rendering performance */
+img {
+  content-visibility: auto;
+  contain-intrinsic-size: 200px 150px;
+}
+
+/* Reduce paint complexity */
+.modern-card {
+  contain: layout style paint;
+}
+
+.glass-card {
+  contain: layout style paint;
+}
+
+/* Fast CSS animations */
+.animate-fade-in {
+  animation: fadeInFast 0.4s ease-out forwards;
+}
+
+@keyframes fadeInFast {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 body {
-  @apply bg-white text-gray-800 font-sans overflow-x-hidden;
+  @apply bg-modern-light text-modern-dark font-sans overflow-x-hidden;
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  letter-spacing: -0.015em;
 }
 
 @layer components {
   .btn {
-    @apply px-6 py-2 rounded-md font-medium transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-sushi-gold/50 transform hover:scale-[1.02] active:scale-[0.98];
+    @apply px-8 py-4 rounded-2xl font-medium transition-all duration-500 focus:outline-none focus:ring-2 focus:ring-accent-gold/30 transform hover:scale-[1.02] active:scale-[0.98];
+    font-family: 'Inter', system-ui, sans-serif;
+    font-weight: 500;
+    letter-spacing: -0.01em;
   }
   .btn-primary {
-    @apply btn bg-sushi-red text-white hover:bg-sushi-accent;
+    @apply btn bg-modern-dark text-modern-light hover:bg-modern-black border border-transparent;
+    box-shadow: 0 4px 14px 0 rgba(10, 10, 10, 0.25);
   }
   .btn-outline {
-    @apply btn border-2 border-sushi-gold text-sushi-gold hover:bg-sushi-gold hover:text-white;
+    @apply btn border-2 border-modern-dark text-modern-dark hover:bg-modern-dark hover:text-modern-light;
+    background: rgba(248, 248, 246, 0.8);
+    backdrop-filter: blur(10px);
   }
   .container-custom {
-    @apply container mx-auto px-4 sm:px-6 lg:px-8;
+    @apply container mx-auto px-6 sm:px-8 lg:px-12;
+    max-width: 1280px;
   }
   .section-heading {
-    @apply font-display text-3xl md:text-4xl font-bold mb-6 text-sushi-black;
+    @apply font-display text-4xl md:text-6xl font-normal mb-8 text-modern-dark tracking-tight;
+    font-family: 'Forum', serif;
+    line-height: 1.1;
   }
   .heading-accent {
-    @apply text-sushi-gold;
+    @apply text-accent-gold;
   }
   .overlay-gradient {
-    @apply absolute inset-0 bg-gradient-to-t from-sushi-black/70 to-transparent;
+    @apply absolute inset-0 bg-gradient-to-t from-modern-black/80 to-transparent;
+  }
+  .glass-card {
+    @apply bg-modern-light/80 backdrop-blur-md border border-modern-beige/20 rounded-3xl;
+    box-shadow: 0 8px 32px rgba(10, 10, 10, 0.1);
+  }
+  .modern-card {
+    @apply bg-modern-light border border-modern-beige/30 rounded-3xl p-8 transition-transform duration-300;
+    box-shadow: 0 4px 20px rgba(10, 10, 10, 0.08);
+    will-change: transform;
+  }
+  .modern-card:hover {
+    transform: translateY(-8px) translateZ(0);
+    box-shadow: 0 12px 40px rgba(10, 10, 10, 0.15);
   }
 }
 
-/* Custom scrollbar */
+/* Optimized scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--scrollbar-track);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 4px;
+  background: rgba(42, 42, 42, 0.3);
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6e0000;
+  background: rgba(42, 42, 42, 0.5);
 }
 
-/* Mobile optimization classes */
+/* Performance optimization utilities */
 @layer utilities {
   .mobile-container {
     @apply mx-auto w-full max-w-[420px] px-4 xs:px-6;
@@ -75,6 +133,33 @@ body {
 
   .mobile-friendly-text {
     @apply text-sm xs:text-base leading-relaxed;
+  }
+
+  /* GPU acceleration for smooth scrolling */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform;
+  }
+
+  /* Optimized animations */
+  .smooth-transform {
+    will-change: transform;
+    transform: translateZ(0);
+  }
+
+  /* Reduce motion for performance */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-float,
+    .animate-bounce-slow,
+    .animate-pulse-subtle {
+      animation: none;
+    }
+    
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
